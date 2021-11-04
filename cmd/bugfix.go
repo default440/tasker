@@ -5,15 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"tasker/tfs"
+	"tasker/tfs/workitem"
 
-	"tasker/api/connection"
-	"tasker/api/identity"
-	"tasker/api/work"
-	"tasker/api/workitem"
-
-	"github.com/microsoft/azure-devops-go-api/azuredevops/workitemtracking"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var bugfixCmd = &cobra.Command{
@@ -51,42 +46,17 @@ func init() {
 }
 
 func createBugfixCommand(ctx context.Context, bugID int, description string) error {
-	conn := connection.Create()
-	project := viper.GetString("project")
-	team := viper.GetString("team")
-	discipline := viper.GetString("discipline")
-	user := viper.GetString("user")
-
-	currentIterationPath, err := work.GetCurrentIteration(ctx, conn, project, team)
+	a, err := tfs.NewAPI(ctx)
 	if err != nil {
 		return err
 	}
 
-	api, err := workitem.NewClient(ctx, conn, team, project)
+	bug, err := a.Client.Get(ctx, bugID)
 	if err != nil {
 		return err
 	}
 
-	var parent *workitemtracking.WorkItemReference
-	if parentWorkItemID > 0 {
-		parent, err = api.GetReference(ctx, int(parentWorkItemID))
-	} else {
-		parent, err = api.FindCommonUserStory(ctx, currentIterationPath)
-	}
-	if err != nil {
-		return err
-	}
-
-	bug, err := api.Get(ctx, bugID)
-	if err != nil {
-		return err
-	}
-
-	links := []*workitem.Link{
-		{
-			URL:  *parent.Url,
-			Type: "System.LinkTypes.Hierarchy-Reverse",
-		},
+	relations := []*workitem.Relation{
 		{
 			URL:  *bug.Url,
 			Type: "System.LinkTypes.Related",
@@ -94,23 +64,5 @@ func createBugfixCommand(ctx context.Context, bugID int, description string) err
 	}
 
 	title := fmt.Sprintf("BUG %d %s", bugID, workitem.GetTitle(bug))
-	task, err := api.Create(ctx, title, description, discipline, currentIterationPath, int(estimate), links, []string{"bugfix"})
-	if err != nil {
-		return err
-	}
-
-	href := workitem.GetURL(task)
-	fmt.Printf("%s\n", href)
-
-	userIdentity, err := identity.GetCurrent(ctx, conn, user)
-	if err != nil {
-		return err
-	}
-
-	err = api.Assign(ctx, task, userIdentity)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return a.CreateTask(ctx, title, description, int(estimate), int(parentWorkItemID), relations, []string{"bugfix"}, openBrowser)
 }

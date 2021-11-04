@@ -2,14 +2,8 @@ package cmd
 
 import (
 	"context"
-	"fmt"
+	"tasker/tfs"
 
-	"tasker/api/connection"
-	"tasker/api/identity"
-	"tasker/api/work"
-	"tasker/api/workitem"
-
-	"github.com/microsoft/azure-devops-go-api/azuredevops/workitemtracking"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -39,6 +33,7 @@ var (
 
 	estimate         uint8
 	parentWorkItemID uint32
+	openBrowser      bool
 )
 
 func init() {
@@ -51,65 +46,20 @@ func init() {
 
 	createCmd.PersistentFlags().Uint8VarP(&estimate, "estimate", "e", 0, "The original estimate of work required to complete the task (in person hours)")
 	createCmd.PersistentFlags().Uint32VarP(&parentWorkItemID, "parent", "p", 0, "Id of parent User Story (default to '*Общие задачи*' of current sprint)")
+	createCmd.PersistentFlags().BoolVarP(&openBrowser, "open", "o", false, "Open created task in browser?")
 
 	cobra.CheckErr(createCmd.MarkPersistentFlagRequired("estimate"))
 
-	cobra.CheckErr(viper.BindPFlag("project", createCmd.PersistentFlags().Lookup("project")))
-	cobra.CheckErr(viper.BindPFlag("team", createCmd.PersistentFlags().Lookup("team")))
-	cobra.CheckErr(viper.BindPFlag("discipline", createCmd.PersistentFlags().Lookup("discipline")))
-	cobra.CheckErr(viper.BindPFlag("user", createCmd.PersistentFlags().Lookup("user")))
+	cobra.CheckErr(viper.BindPFlag("tfsProject", createCmd.PersistentFlags().Lookup("project")))
+	cobra.CheckErr(viper.BindPFlag("tfsTeam", createCmd.PersistentFlags().Lookup("team")))
+	cobra.CheckErr(viper.BindPFlag("tfsDiscipline", createCmd.PersistentFlags().Lookup("discipline")))
+	cobra.CheckErr(viper.BindPFlag("tfsUserFilter", createCmd.PersistentFlags().Lookup("user")))
 }
 
 func createTaskCommand(ctx context.Context, title, description string) error {
-	conn := connection.Create()
-	project := viper.GetString("project")
-	team := viper.GetString("team")
-	discipline := viper.GetString("discipline")
-	user := viper.GetString("user")
-
-	currentIterationPath, err := work.GetCurrentIteration(ctx, conn, project, team)
+	a, err := tfs.NewAPI(ctx)
 	if err != nil {
 		return err
 	}
-
-	api, err := workitem.NewClient(ctx, conn, team, project)
-	if err != nil {
-		return err
-	}
-
-	var parent *workitemtracking.WorkItemReference
-	if parentWorkItemID > 0 {
-		parent, err = api.GetReference(ctx, int(parentWorkItemID))
-	} else {
-		parent, err = api.FindCommonUserStory(ctx, currentIterationPath)
-	}
-	if err != nil {
-		return err
-	}
-
-	links := []*workitem.Link{
-		{
-			URL:  *parent.Url,
-			Type: "System.LinkTypes.Hierarchy-Reverse",
-		},
-	}
-	task, err := api.Create(ctx, title, description, discipline, currentIterationPath, int(estimate), links, []string{})
-	if err != nil {
-		return err
-	}
-
-	href := workitem.GetURL(task)
-	fmt.Printf("%s\n", href)
-
-	userIdentity, err := identity.GetCurrent(ctx, conn, user)
-	if err != nil {
-		return err
-	}
-
-	err = api.Assign(ctx, task, userIdentity)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return a.CreateTask(ctx, title, description, int(estimate), int(parentWorkItemID), nil, nil, openBrowser)
 }

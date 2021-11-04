@@ -28,12 +28,15 @@ func init() {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	viper.SetDefault("baseAddress", "http://msk-tfs-t.infotecs-nt:8080/tfs/SrvNccCollection")
-	viper.SetDefault("project", "NSMS")
-	viper.SetDefault("team", "SMP")
-	viper.SetDefault("discipline", "Development")
-	viper.SetDefault("user", "ANON")
-	viper.SetDefault("personalAccessToken", "")
+	viper.SetDefault("tfsBaseAddress", "http://msk-tfs-t.infotecs-nt:8080/tfs/SrvNccCollection")
+	viper.SetDefault("tfsProject", "NSMS")
+	viper.SetDefault("tfsTeam", "SMP")
+	viper.SetDefault("tfsDiscipline", "Development")
+	viper.SetDefault("tfsUserFilter", "ANON")
+	viper.SetDefault("tfsAreaPath", "")
+	viper.SetDefault("tfsAccessToken", "")
+	viper.SetDefault("wikiAccessToken", "")
+	viper.SetDefault("wikiBaseAddress", "https://wiki.infotecs.int")
 
 	if cfgFile != "" {
 		// Use config file from the flag.

@@ -7,9 +7,12 @@ import (
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/identity"
+	"github.com/spf13/viper"
 )
 
-func GetCurrent(ctx context.Context, conn *azuredevops.Connection, filter string) (string, error) {
+func Get(ctx context.Context, conn *azuredevops.Connection) (string, error) {
+	userFilter := viper.GetString("tfsUserFilter")
+
 	client, err := identity.NewClient(ctx, conn)
 	if err != nil {
 		return "", err
@@ -17,7 +20,7 @@ func GetCurrent(ctx context.Context, conn *azuredevops.Connection, filter string
 
 	identities, err := client.ReadIdentities(ctx, identity.ReadIdentitiesArgs{
 		SearchFilter:    ptr.FromStr("General"),
-		FilterValue:     ptr.FromStr(filter),
+		FilterValue:     ptr.FromStr(userFilter),
 		QueryMembership: &identity.QueryMembershipValues.None,
 	})
 	if err != nil {

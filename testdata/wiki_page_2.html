@@ -1,0 +1,348 @@
+<h1>Дано</h1>
+<ul>
+	<li>Xsd схема должна быть доступна пользователю &nbsp;для чтения и изменения</li>
+	<li>Классификатор можно удалять</li>
+	<li>Классификатор это XML файл</li>
+</ul>
+<h1>Вопросы</h1>
+<ul>
+	<li>
+		<s>Будут ли отдельные урезанные требования?</s>- да
+	</li>
+	<li>
+		<s>Будет ли UI?</s>- да
+		<ul>
+			<li>Когда?</li>
+		</ul>
+	</li>
+	<li>
+		<s>Почему бы не сделать загрузку xsd также через интерфейс?</s>- делаем
+	</li>
+	<li>Где хранить классификатор? - в GridFS/S3</li>
+	<li>
+		<s>В каком виде будет классификатор zip/lzh/xml?</s>- XML файл. Пример
+		<ac:link>
+			<ri:attachment ri:filename="ipoque_PACE2_dpid_16.07.01.xml" />
+			<ac:plain-text-link-body><![CDATA[классификатора]]></ac:plain-text-link-body>
+		</ac:link>, пример
+		<ac:link>
+			<ri:attachment ri:filename="ipoque_PACE2_dpid_16.07.29.xsd" />
+			<ac:plain-text-link-body><![CDATA[схемы]]></ac:plain-text-link-body>
+		</ac:link>.
+		<ul>
+			<li>
+				<s>Совпадает ли он с тем, что сейчас обрабатывает VPN?</s>- не совпадает.
+			</li>
+		</ul>
+	</li>
+	<li>Для отправки через 5 транспорт необходимо знать:
+		<ul>
+			<li>подсистема - ?</li>
+			<li>ревизия - ?</li>
+		</ul>
+	</li>
+	<li>
+		<s>При загрузке через интерфейс классификатор рассылается сразу?&nbsp;</s>
+	</li>
+	<li>
+		<s>На какие узлы осуществляется рассылка классификатора?</s>
+		<br />
+		<ul>
+			<li>
+				<s>Как понять, требует ли узел наличия классификатора?</s>
+			</li>
+			<li>
+				<s>Что делать, если классификатор требуется, но он не загружен?</s>- вставлять фейковый v1.0
+			</li>
+		</ul>
+	</li>
+	<li>Добавляем ли логирование в журнал событий?</li>
+	<li>
+		<s>Файл одни на организацию?</s>- на организацию
+	</li>
+</ul>
+<h1>Нужно сделать</h1>
+<ul>
+	<li>Загрузку/обновление/удаление классификатора</li>
+	<li>Просмотр версии загруженного классификатора</li>
+	<li>
+		<ac:emoticon ac:name="question" />Загрузку/обновление xsd схемы классификатора
+	</li>
+	<li>
+		<s>Отправку DPI классификатора средствами MFTP</s>
+	</li>
+	<li>Добавление актуальной версии DPI классификатора в результирующую политику</li>
+</ul>
+<h1>Задачи</h1>
+<table class="wrapped">
+	<colgroup>
+		<col style="width: 38.0px;" />
+		<col style="width: 366.0px;" />
+		<col style="width: 622.0px;" />
+		<col style="width: 73.0px;" />
+		<col style="width: 44.0px;" />
+	</colgroup>
+	<tbody>
+		<tr>
+			<th class="numberingColumn">№</th>
+			<th>Задача</th>
+			<th>Описание</th>
+			<th>Оценка</th>
+			<th colspan="1">TFS</th>
+		</tr>
+		<tr>
+			<td class="numberingColumn" colspan="1">1</td>
+			<td colspan="1">Репозиторий хранения классификатора</td>
+			<td colspan="1">
+				<p>Зфкек 1 Сохранение (Upsert) файла классификатора</p>
+				<p>Cохранение версии классификатора (для получения версии без необходимости чтения XML)</p>
+				<p>Сохранение (Upsert) файла XSD схемы</p>
+				<p>Получение классификатора</p>
+				<p>Получение версии классификатора</p>
+				<p>Получение XSD схемы</p>
+				<p>Удаление классификатора</p>
+			</td>
+			<td colspan="1">7</td>
+			<td colspan="1">
+				<div class="content-wrapper">
+					<p>
+						<ac:structured-macro ac:name="work-item-tfs" ac:schema-version="1" ac:macro-id="75e3c9dc-07ae-4e21-b2fd-696e4dd7e560">
+							<ac:parameter ac:name="itemID">71711</ac:parameter>
+							<ac:parameter ac:name="host">1</ac:parameter>
+							<ac:parameter ac:name="assigned">true</ac:parameter>
+							<ac:parameter ac:name="status">true</ac:parameter>
+						</ac:structured-macro>
+					</p>
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td class="numberingColumn" colspan="1">2</td>
+			<td colspan="1">Сервис классификатора</td>
+			<td colspan="1">
+				<p>Проверка по XSD схеме</p>
+				<p>Добавление в хранилище</p>
+				<p>Загрузка файла классификатора&nbsp;</p>
+				<p>Загрузка файла XSD схемы</p>
+				<p>Получение версии классификатора</p>
+				<p>Получение файла классификатора&nbsp;</p>
+				<p>Получение XSD файла&nbsp;</p>
+				<p>Удаление классификатора</p>
+			</td>
+			<td colspan="1">7</td>
+			<td colspan="1">
+				<div class="content-wrapper">
+					<p>
+						<ac:structured-macro ac:name="work-item-tfs" ac:schema-version="1" ac:macro-id="c9c26cc2-bafd-4bdd-93f2-544e4d2c7095">
+							<ac:parameter ac:name="itemID">71712</ac:parameter>
+							<ac:parameter ac:name="host">1</ac:parameter>
+							<ac:parameter ac:name="assigned">true</ac:parameter>
+							<ac:parameter ac:name="status">true</ac:parameter>
+						</ac:structured-macro>
+					</p>
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td class="numberingColumn" colspan="1">3</td>
+			<td colspan="1">Контроллер</td>
+			<td colspan="1">
+				<p>Загрузка файла классификатора (HTTP POST)</p>
+				<p>Загрузка файла XSD схемы (HTTP POST)</p>
+				<p>Получение версии классификатора (HTTP GET /)</p>
+				<p>Получение файла классификатора (HTTP GET /)</p>
+				<p>Получение XSD файла (HTTP GET /)</p>
+				<p>Удаление классификатора (HTTP DELETE)</p>
+			</td>
+			<td colspan="1">6</td>
+			<td colspan="1">
+				<div class="content-wrapper">
+					<p>
+						<ac:structured-macro ac:name="work-item-tfs" ac:schema-version="1" ac:macro-id="6ae83753-fed6-4251-8c1b-f700a1670b48">
+							<ac:parameter ac:name="itemID">71713</ac:parameter>
+							<ac:parameter ac:name="host">1</ac:parameter>
+							<ac:parameter ac:name="assigned">true</ac:parameter>
+							<ac:parameter ac:name="status">true</ac:parameter>
+						</ac:structured-macro>
+					</p>
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td class="numberingColumn" colspan="1">4</td>
+			<td colspan="1">Добавление версии DPI в результирующую политику</td>
+			<td colspan="1">
+				<p>Добавлять версию во все политики</p>
+				<p>Если классификатора нет, то вставлять фейковую запись</p>
+			</td>
+			<td colspan="1">5</td>
+			<td colspan="1">
+				<div class="content-wrapper">
+					<p>
+						<ac:structured-macro ac:name="work-item-tfs" ac:schema-version="1" ac:macro-id="d64a2789-6f68-48d2-8ab6-01edd3f6d930">
+							<ac:parameter ac:name="itemID">71714</ac:parameter>
+							<ac:parameter ac:name="host">1</ac:parameter>
+							<ac:parameter ac:name="assigned">true</ac:parameter>
+							<ac:parameter ac:name="status">true</ac:parameter>
+						</ac:structured-macro>
+					</p>
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td class="numberingColumn" colspan="1">5</td>
+			<td colspan="1">События журнала действий пользователя</td>
+			<td colspan="1">
+				<p>
+					<span style="color: rgb(23,43,77);">Загрузка DPI-классификатора</span>
+				</p>
+				<p>
+					<span style="color: rgb(23,43,77);">Удаление DPI-классификатора</span>
+				</p>
+				<p>
+					<span style="color: rgb(23,43,77);">
+						<ac:emoticon ac:name="question" />Загрузка XSD-схемы
+					</span>
+				</p>
+			</td>
+			<td colspan="1">5</td>
+			<td colspan="1">
+				<div class="content-wrapper">
+					<p>
+						<ac:structured-macro ac:name="work-item-tfs" ac:schema-version="1" ac:macro-id="5148d2cb-b39e-4671-bcec-8775c7397e87">
+							<ac:parameter ac:name="itemID">71715</ac:parameter>
+							<ac:parameter ac:name="host">1</ac:parameter>
+							<ac:parameter ac:name="assigned">true</ac:parameter>
+							<ac:parameter ac:name="status">true</ac:parameter>
+						</ac:structured-macro>
+					</p>
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td class="numberingColumn" colspan="1">6</td>
+			<td colspan="1">
+				<ac:emoticon ac:name="question" />UI. Новый раздел
+			</td>
+			<td colspan="1">Пункт меню, сервис для контроллера (можно пустой), заглушка страницы раздела</td>
+			<td colspan="1">4</td>
+			<td colspan="1">
+				<div class="content-wrapper">
+					<p>
+						<ac:structured-macro ac:name="work-item-tfs" ac:schema-version="1" ac:macro-id="b983c0a4-a92a-4778-905a-62247e2efd29">
+							<ac:parameter ac:name="itemID">71716</ac:parameter>
+							<ac:parameter ac:name="host">1</ac:parameter>
+							<ac:parameter ac:name="assigned">true</ac:parameter>
+							<ac:parameter ac:name="status">true</ac:parameter>
+						</ac:structured-macro>
+					</p>
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td class="numberingColumn" colspan="1">7</td>
+			<td colspan="1">
+				<ac:emoticon ac:name="question" />UI. Отображение версии классификатора
+			</td>
+			<td colspan="1">
+				<p>Метод сервиса для получения версии</p>
+				<p>Верстка</p>
+			</td>
+			<td colspan="1">4</td>
+			<td colspan="1">
+				<div class="content-wrapper">
+					<p>
+						<ac:structured-macro ac:name="work-item-tfs" ac:schema-version="1" ac:macro-id="3eb6332a-d40c-4dec-af8d-675245cb1aa1">
+							<ac:parameter ac:name="itemID">71717</ac:parameter>
+							<ac:parameter ac:name="host">1</ac:parameter>
+							<ac:parameter ac:name="assigned">true</ac:parameter>
+							<ac:parameter ac:name="status">true</ac:parameter>
+						</ac:structured-macro>
+					</p>
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td class="numberingColumn" colspan="1">8</td>
+			<td colspan="1">
+				<ac:emoticon ac:name="question" />UI. Загрузка классификатора
+			</td>
+			<td colspan="1">
+				<p>Метод сервиса</p>
+				<p>Верстка (вероятно кнопка с коном выбора файла)</p>
+			</td>
+			<td colspan="1">4</td>
+			<td colspan="1">
+				<div class="content-wrapper">
+					<p>
+						<ac:structured-macro ac:name="work-item-tfs" ac:schema-version="1" ac:macro-id="820d411e-01ad-4a45-bfe3-6a2df11be8eb">
+							<ac:parameter ac:name="itemID">71718</ac:parameter>
+							<ac:parameter ac:name="host">1</ac:parameter>
+							<ac:parameter ac:name="assigned">true</ac:parameter>
+							<ac:parameter ac:name="status">true</ac:parameter>
+						</ac:structured-macro>
+					</p>
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td class="numberingColumn" colspan="1">9</td>
+			<td colspan="1">
+				<ac:emoticon ac:name="question" />UI. Загрузка XSD схемы
+			</td>
+			<td colspan="1">
+				<p>Метод сервиса</p>
+				<p>Верстка (вероятно кнопка с коном выбора файла)</p>
+			</td>
+			<td colspan="1">4</td>
+			<td colspan="1">
+				<div class="content-wrapper">
+					<p>
+						<ac:structured-macro ac:name="work-item-tfs" ac:schema-version="1" ac:macro-id="c8d69fcd-af67-4c4d-a2f9-4a0da8f35306">
+							<ac:parameter ac:name="itemID">71719</ac:parameter>
+							<ac:parameter ac:name="host">1</ac:parameter>
+							<ac:parameter ac:name="assigned">true</ac:parameter>
+							<ac:parameter ac:name="status">true</ac:parameter>
+						</ac:structured-macro>
+					</p>
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td class="numberingColumn" colspan="1">10</td>
+			<td colspan="1">Сведение</td>
+			<td colspan="1">
+				<br />
+			</td>
+			<td colspan="1">8</td>
+			<td colspan="1">
+				<div class="content-wrapper">
+					<p>
+						<ac:structured-macro ac:name="work-item-tfs" ac:schema-version="1" ac:macro-id="a63045fe-58a8-40b0-a6f0-09297c6d847a">
+							<ac:parameter ac:name="itemID">71720</ac:parameter>
+							<ac:parameter ac:name="host">1</ac:parameter>
+							<ac:parameter ac:name="assigned">true</ac:parameter>
+							<ac:parameter ac:name="status">true</ac:parameter>
+						</ac:structured-macro>
+					</p>
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td class="numberingColumn" colspan="1">11</td>
+			<td colspan="1"></td>
+			<td colspan="1"></td>
+			<td colspan="1"></td>
+			<td colspan="1"></td>
+		</tr>
+		<tr>
+			<td class="numberingColumn" colspan="1">11</td>
+			<td colspan="1">Демо</td>
+			<td colspan="1">
+				<br />
+			</td>
+			<td colspan="1">4</td>
+			<td colspan="1">Не создавать задачу в TFS</td>
+		</tr>
+	</tbody>
+</table>

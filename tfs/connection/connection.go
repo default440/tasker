@@ -6,9 +6,9 @@ import (
 )
 
 func Create() *azuredevops.Connection {
-	baseAddress := viper.GetString("baseAddress")
+	baseAddress := viper.GetString("tfsBaseAddress")
 
-	personalAccessToken := viper.GetString("personalAccessToken")
+	personalAccessToken := viper.GetString("tfsAccessToken")
 	if personalAccessToken != "" {
 		return azuredevops.NewPatConnection(baseAddress, personalAccessToken)
 	}

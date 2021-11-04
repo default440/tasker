@@ -3,70 +3,52 @@ package workitem
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"tasker/ptr"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/webapi"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/workitemtracking"
+	"github.com/spf13/viper"
 )
 
-type API struct {
+type Client struct {
 	client  workitemtracking.Client
 	project string
 	team    string
 }
 
-type Link struct {
+type Relation struct {
 	URL  string
 	Type string
 }
 
-func NewClient(ctx context.Context, conn *azuredevops.Connection, team, project string) (*API, error) {
+func NewClient(ctx context.Context, conn *azuredevops.Connection, team, project string) (*Client, error) {
 	client, err := workitemtracking.NewClient(ctx, conn)
 	if err != nil {
 		return nil, err
 	}
-	return &API{
+	return &Client{
 		client:  client,
 		project: project,
 		team:    team,
 	}, nil
 }
 
-func (api *API) GetReference(ctx context.Context, taskID int) (*workitemtracking.WorkItemReference, error) {
-	workItem, err := api.client.GetWorkItem(ctx, workitemtracking.GetWorkItemArgs{
-		Id: ptr.FromInt(taskID),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	if workItem == nil {
-		return nil, fmt.Errorf("work item with %d not found", taskID)
-	}
-
-	return &workitemtracking.WorkItemReference{
-		Id:  workItem.Id,
-		Url: workItem.Url,
-	}, nil
-}
-
-func (api *API) Get(ctx context.Context, taskID int) (*workitemtracking.WorkItem, error) {
+func (api *Client) Get(ctx context.Context, taskID int) (*workitemtracking.WorkItem, error) {
 	return api.client.GetWorkItem(ctx, workitemtracking.GetWorkItemArgs{
 		Id: ptr.FromInt(taskID),
 	})
 }
 
-func (api *API) FindCommonUserStory(ctx context.Context, currentIterationPath string) (*workitemtracking.WorkItemReference, error) {
+func (api *Client) FindCommonUserStory(ctx context.Context, iterationPath string) (*workitemtracking.WorkItemReference, error) {
 	queryResult, err := api.client.QueryByWiql(ctx, workitemtracking.QueryByWiqlArgs{
 		Wiql: &workitemtracking.Wiql{
 			Query: ptr.FromStr(`
 				SELECT [Id], [Title]
 				FROM WorkItems
 				WHERE [Work Item Type] = 'User Story'
-					AND [System.IterationPath] = '` + currentIterationPath + `'
+					AND [System.IterationPath] = '` + iterationPath + `'
 					AND [Title] CONTAINS 'Общие задачи'
 					AND [State] = 'Active'
 			`),
@@ -85,19 +67,26 @@ func (api *API) FindCommonUserStory(ctx context.Context, currentIterationPath st
 	return nil, errors.New("active user story with name '*Общие задачи*' not found in current sprint")
 }
 
-func (api *API) Create(ctx context.Context, title, description, discipline, currentIterationPath string, estimate int, links []*Link, tags []string) (*workitemtracking.WorkItem, error) {
+func (api *Client) Create(ctx context.Context, title, description, iterationPath string, estimate int, relations []*Relation, tags []string) (*workitemtracking.WorkItem, error) {
+	discipline := viper.GetString("tfsDiscipline")
+
+	areaPath := viper.GetString("tfsAreaPath")
+	if areaPath == "" {
+		areaPath = api.project + "\\" + api.team
+	}
+
 	tags = append(tags, "tasker")
 
 	fields := []webapi.JsonPatchOperation{
 		{
 			Op:    &webapi.OperationValues.Add,
 			Path:  ptr.FromStr("/fields/System.IterationPath"),
-			Value: currentIterationPath,
+			Value: iterationPath,
 		},
 		{
 			Op:    &webapi.OperationValues.Add,
 			Path:  ptr.FromStr("/fields/System.AreaPath"),
-			Value: api.project + "\\" + api.team,
+			Value: areaPath,
 		},
 		{
 			Op:    &webapi.OperationValues.Add,
@@ -131,13 +120,13 @@ func (api *API) Create(ctx context.Context, title, description, discipline, curr
 		},
 	}
 
-	for _, link := range links {
+	for _, relation := range relations {
 		fields = append(fields, webapi.JsonPatchOperation{
 			Op:   &webapi.OperationValues.Add,
 			Path: ptr.FromStr("/relations/-"),
 			Value: workitemtracking.WorkItemRelation{
-				Rel: ptr.FromStr(link.Type),
-				Url: &link.URL,
+				Rel: ptr.FromStr(relation.Type),
+				Url: &relation.URL,
 			},
 		})
 	}
@@ -154,7 +143,7 @@ func (api *API) Create(ctx context.Context, title, description, discipline, curr
 	return task, nil
 }
 
-func (api *API) Assign(ctx context.Context, task *workitemtracking.WorkItem, user string) error {
+func (api *Client) Assign(ctx context.Context, task *workitemtracking.WorkItem, user string) error {
 	_, err := api.client.UpdateWorkItem(ctx, workitemtracking.UpdateWorkItemArgs{
 		Id:      task.Id,
 		Project: &api.project,
@@ -203,6 +192,24 @@ func GetTitle(w *workitemtracking.WorkItem) string {
 		titleStr, ok := title.(string)
 		if ok {
 			return titleStr
+		}
+	}
+	return ""
+}
+
+func GetReference(w *workitemtracking.WorkItem) *workitemtracking.WorkItemReference {
+	return &workitemtracking.WorkItemReference{
+		Id:  w.Id,
+		Url: w.Url,
+	}
+}
+
+func GetIterationPath(w *workitemtracking.WorkItem) string {
+	iterationPath, ok := (*w.Fields)["System.IterationPath"]
+	if ok {
+		iterationPathStr, ok := iterationPath.(string)
+		if ok {
+			return iterationPathStr
 		}
 	}
 	return ""
