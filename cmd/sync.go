@@ -38,8 +38,9 @@ var (
 		},
 	}
 
-	featureIDRegexp   = regexp.MustCompile(`\d+`)
-	featureWorkItemID uint32
+	featureIDRegexp         = regexp.MustCompile(`\d+`)
+	startedWithNumberRegexp = regexp.MustCompile(`^\d+`)
+	featureWorkItemID       uint32
 )
 
 func init() {
@@ -118,9 +119,9 @@ func updateWikiPage(api *goconfluence.API, content *goconfluence.Content, doc *g
 	})
 
 	if err == nil {
-		spinner.Success("Wiki page updated")
+		spinner.Success("WIKI PAGE UPDATED")
 	} else {
-		spinner.Warning("Wiki pdage not updated: " + err.Error())
+		spinner.Warning("WIKI PDAGE NOT UPDATED: " + err.Error())
 	}
 	_ = spinner.Stop()
 	return err
@@ -143,18 +144,32 @@ func createTasks(ctx context.Context, featureID int, tasks []wiki.Task) error {
 	}
 
 	for i := 0; i < progressbar.Total; i++ {
-		progressbar.UpdateTitle(fmt.Sprintf("Creating %d %s", i+1, cutString(tasks[i].Title, 20, true)))
-
 		t := tasks[i]
-		tfsTask, err := a.CreateFeatureTask(ctx, fmt.Sprintf("%02d %s", i+1, t.Title), t.Description, t.Estimate, feature)
-		switch {
-		case err != nil && errors.Is(err, tfs.ErrFailedToAssign):
-			pterm.Warning.Println(fmt.Sprintf("Not assigned %d %s: %s", i+1, tasks[i].Title, err.Error()))
-		case err != nil:
-			pterm.Error.Println(fmt.Sprintf("Not created %d %s: %s", i+1, tasks[i].Title, err.Error()))
-		default:
-			pterm.Success.Println(fmt.Sprintf("Created %d %s", i+1, tasks[i].Title))
-			t.TfsColumn.SetHtml(createTfsTaskMacros(tfsTask))
+		progressbar.UpdateTitle(fmt.Sprintf("Creating %d %s", i+1, cutString(t.Title, 20, true)))
+
+		title := t.Title
+		if !startedWithNumberRegexp.MatchString(title) {
+			title = fmt.Sprintf("%02d. %s", i+1, t.Title)
+		}
+
+		if t.TfsTaskID > 0 {
+			err := a.Client.Update(ctx, t.TfsTaskID, title, t.Description)
+			if err == nil {
+				pterm.Success.Println(fmt.Sprintf("UPDATED %d %s", i+1, t.Title))
+			} else {
+				pterm.Warning.Println(fmt.Sprintf("NOT UPDATED %d %s: %s", i+1, t.Title, err.Error()))
+			}
+		} else {
+			tfsTask, err := a.CreateFeatureTask(ctx, title, t.Description, t.Estimate, feature)
+			switch {
+			case err != nil && errors.Is(err, tfs.ErrFailedToAssign):
+				pterm.Warning.Println(fmt.Sprintf("NOT ASSIGNED %d %s: %s", i+1, t.Title, err.Error()))
+			case err != nil:
+				pterm.Error.Println(fmt.Sprintf("NOT CREATED %d %s: %s", i+1, t.Title, err.Error()))
+			default:
+				pterm.Success.Println(fmt.Sprintf("CREATED %d %s", i+1, t.Title))
+				t.TfsColumn.SetHtml(createTfsTaskMacros(tfsTask))
+			}
 		}
 
 		progressbar.Increment()

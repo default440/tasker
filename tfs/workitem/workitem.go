@@ -35,6 +35,28 @@ func NewClient(ctx context.Context, conn *azuredevops.Connection, team, project 
 	}, nil
 }
 
+func (api *Client) Update(ctx context.Context, taskID int, title, description string) error {
+	fields := []webapi.JsonPatchOperation{
+		{
+			Op:    &webapi.OperationValues.Add,
+			Path:  ptr.FromStr("/fields/System.Title"),
+			Value: title,
+		},
+		{
+			Op:    &webapi.OperationValues.Add,
+			Path:  ptr.FromStr("/fields/System.Description"),
+			Value: description,
+		},
+	}
+	_, err := api.client.UpdateWorkItem(ctx, workitemtracking.UpdateWorkItemArgs{
+		Id:       ptr.FromInt(taskID),
+		Project:  &api.project,
+		Document: &fields,
+	})
+
+	return err
+}
+
 func (api *Client) Get(ctx context.Context, taskID int) (*workitemtracking.WorkItem, error) {
 	return api.client.GetWorkItem(ctx, workitemtracking.GetWorkItemArgs{
 		Id: ptr.FromInt(taskID),
