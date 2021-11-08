@@ -12,7 +12,7 @@ import (
 )
 
 var bugfixCmd = &cobra.Command{
-	Use:   "bugfix BUG_ID [Description]",
+	Use:   "bugfix <Bug ID> [Description]",
 	Short: "Create task for bug",
 	Long:  "Create task for bug related work.",
 	Args: func(cmd *cobra.Command, args []string) error {

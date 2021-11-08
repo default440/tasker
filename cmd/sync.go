@@ -25,7 +25,7 @@ import (
 var (
 	// syncCmd represents the sync command
 	syncCmd = &cobra.Command{
-		Use:   "sync WIKI_PAGE_ID",
+		Use:   "sync <Wiki page ID>",
 		Short: "Syncs wiki with tfs",
 		Long:  `Creates or updates tasks from wiki page in TFS and inserts tfs-macros into wiki page`,
 		Args:  cobra.ExactArgs(1),

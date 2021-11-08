@@ -10,7 +10,7 @@ import (
 
 var (
 	createCmd = &cobra.Command{
-		Use:   "create TITLE [Description]",
+		Use:   "create <Title> [Description]",
 		Short: "Create new task",
 		Long:  `Create new task in current sprint`,
 		Args:  cobra.RangeArgs(1, 2),
