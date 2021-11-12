@@ -33,8 +33,10 @@ func initConfig() {
 	viper.SetDefault("tfsTeam", "SMP")
 	viper.SetDefault("tfsDiscipline", "Development")
 	viper.SetDefault("tfsUserFilter", "ANON")
-	viper.SetDefault("tfsAreaPath", "")
 	viper.SetDefault("tfsAccessToken", "")
+	viper.SetDefault("tfsBugfixUserStoryNamePattern", "")
+	viper.SetDefault("tfsCommonUserStoryNamePattern", "")
+	viper.SetDefault("tfsBugTitleTemplate", defaultBugTitleTemplate)
 	viper.SetDefault("wikiAccessToken", "")
 	viper.SetDefault("wikiBaseAddress", "https://wiki.infotecs.int")
 

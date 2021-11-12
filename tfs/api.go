@@ -3,8 +3,6 @@ package tfs
 import (
 	"context"
 	"errors"
-	"fmt"
-	"tasker/browser"
 	"tasker/tfs/connection"
 	"tasker/tfs/identity"
 	"tasker/tfs/work"
@@ -44,33 +42,22 @@ func NewAPI(ctx context.Context) (*API, error) {
 	}, nil
 }
 
-func (a *API) CreateTask(ctx context.Context, title, description string, estimate, parentID int, relations []*workitem.Relation, tags []string, openBrowser bool) error {
+func (a *API) CreateTask(ctx context.Context, title, description string, estimate, parentID int, relations []*workitem.Relation, tags []string, parentNamePattern string) (*workitemtracking.WorkItem, error) {
 	var err error
-	var iterationPath string
-	var parent *workitemtracking.WorkItemReference
+	var parent *workitemtracking.WorkItem
 
 	user, err := identity.Get(ctx, a.conn)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if parentID > 0 {
-		parentWorkItem, err := a.Client.Get(ctx, parentID)
-		if err != nil {
-			return err
-		}
-		parent = workitem.GetReference(parentWorkItem)
-		iterationPath = workitem.GetIterationPath(parentWorkItem)
+		parent, err = a.Client.Get(ctx, parentID)
 	} else {
-		iterationPath, err = work.GetCurrentIteration(ctx, a.conn, a.project, a.team)
-		if err != nil {
-			return err
-		}
-
-		parent, err = a.Client.FindCommonUserStory(ctx, iterationPath)
-		if err != nil {
-			return err
-		}
+		parent, err = a.findParent(ctx, parentNamePattern)
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	parentRelation := workitem.Relation{
@@ -78,29 +65,47 @@ func (a *API) CreateTask(ctx context.Context, title, description string, estimat
 		Type: "System.LinkTypes.Hierarchy-Reverse",
 	}
 	relations = append(relations, &parentRelation)
+	iterationPath := workitem.GetIterationPath(parent)
+	areaPath := workitem.GetAreaPath(parent)
 
-	task, err := a.Client.Create(ctx, title, description, iterationPath, int(estimate), relations, tags)
+	task, err := a.Client.Create(ctx, title, description, areaPath, iterationPath, int(estimate), relations, tags)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	href := workitem.GetURL(task)
-	fmt.Printf("%s\n", href)
 
 	err = a.Client.Assign(ctx, task, user)
 	if err != nil {
-		return err
+		return task, err
 	}
 
-	if openBrowser {
-		browser.OpenURL(href)
+	return task, nil
+}
+
+func (a *API) findParent(ctx context.Context, namePattern string) (*workitemtracking.WorkItem, error) {
+	iterations, err := work.GetIterations(ctx, a.conn, a.project, a.team)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
+	for i := len(*iterations) - 1; i >= 0; i-- {
+		iteration := (*iterations)[i]
+		if *iteration.Attributes.TimeFrame == "current" || *iteration.Attributes.TimeFrame == "past" {
+			userStory, err := a.Client.FindUserStory(ctx, namePattern, *iteration.Path)
+			if err != nil {
+				return nil, err
+			}
+			if userStory != nil {
+				return userStory, nil
+			}
+		}
+	}
+
+	return nil, errors.New("active user story with name contains '" + namePattern + "' not found in current and previous sprints")
 }
 
 func (a *API) CreateFeatureTask(ctx context.Context, title, description string, estimate int, feature *workitemtracking.WorkItem) (*workitemtracking.WorkItem, error) {
 	iterationPath := workitem.GetIterationPath(feature)
+	areaPath := workitem.GetAreaPath(feature)
 	relations := []*workitem.Relation{
 		{
 			URL:  *feature.Url,
@@ -108,5 +113,5 @@ func (a *API) CreateFeatureTask(ctx context.Context, title, description string, 
 		},
 	}
 
-	return a.Client.Create(ctx, title, description, iterationPath, int(estimate), relations, []string{})
+	return a.Client.Create(ctx, title, description, areaPath, iterationPath, int(estimate), relations, []string{})
 }

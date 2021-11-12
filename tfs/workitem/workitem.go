@@ -63,15 +63,19 @@ func (api *Client) Get(ctx context.Context, taskID int) (*workitemtracking.WorkI
 	})
 }
 
-func (api *Client) FindCommonUserStory(ctx context.Context, iterationPath string) (*workitemtracking.WorkItemReference, error) {
+func (api *Client) FindUserStory(ctx context.Context, namePattern, iterationPath string) (*workitemtracking.WorkItem, error) {
+	if namePattern == "" {
+		return nil, errors.New("user story name pattern is empty")
+	}
+
 	queryResult, err := api.client.QueryByWiql(ctx, workitemtracking.QueryByWiqlArgs{
 		Wiql: &workitemtracking.Wiql{
 			Query: ptr.FromStr(`
-				SELECT [Id], [Title]
+				SELECT [Id], [Title], [System.AreaPath], [System.IterationPath]
 				FROM WorkItems
 				WHERE [Work Item Type] = 'User Story'
 					AND [System.IterationPath] = '` + iterationPath + `'
-					AND [Title] CONTAINS 'Общие задачи'
+					AND [Title] CONTAINS '` + namePattern + `'
 					AND [State] = 'Active'
 			`),
 		},
@@ -83,19 +87,15 @@ func (api *Client) FindCommonUserStory(ctx context.Context, iterationPath string
 	}
 
 	if len(*queryResult.WorkItems) > 0 {
-		return &(*queryResult.WorkItems)[0], nil
+		userStory := &(*queryResult.WorkItems)[0]
+		return api.Get(ctx, *userStory.Id)
 	}
 
-	return nil, errors.New("active user story with name '*Общие задачи*' not found in current sprint")
+	return nil, nil
 }
 
-func (api *Client) Create(ctx context.Context, title, description, iterationPath string, estimate int, relations []*Relation, tags []string) (*workitemtracking.WorkItem, error) {
+func (api *Client) Create(ctx context.Context, title, description, areaPath, iterationPath string, estimate int, relations []*Relation, tags []string) (*workitemtracking.WorkItem, error) {
 	discipline := viper.GetString("tfsDiscipline")
-
-	areaPath := viper.GetString("tfsAreaPath")
-	if areaPath == "" {
-		areaPath = api.project + "\\" + api.team
-	}
 
 	tags = append(tags, "tasker")
 
@@ -219,19 +219,23 @@ func GetTitle(w *workitemtracking.WorkItem) string {
 	return ""
 }
 
-func GetReference(w *workitemtracking.WorkItem) *workitemtracking.WorkItemReference {
-	return &workitemtracking.WorkItemReference{
-		Id:  w.Id,
-		Url: w.Url,
-	}
-}
-
 func GetIterationPath(w *workitemtracking.WorkItem) string {
 	iterationPath, ok := (*w.Fields)["System.IterationPath"]
 	if ok {
 		iterationPathStr, ok := iterationPath.(string)
 		if ok {
 			return iterationPathStr
+		}
+	}
+	return ""
+}
+
+func GetAreaPath(w *workitemtracking.WorkItem) string {
+	areaPath, ok := (*w.Fields)["System.AreaPath"]
+	if ok {
+		areaPathStr, ok := areaPath.(string)
+		if ok {
+			return areaPathStr
 		}
 	}
 	return ""

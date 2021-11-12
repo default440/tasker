@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 	"unicode/utf8"
 
 	"tasker/tfs"
@@ -69,7 +68,7 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 	if featureWorkItemID <= 0 {
 		id, err := strconv.ParseUint(featureIDRegexp.FindString(content.Title), 10, 32)
 		if err != nil {
-			return fmt.Errorf("failed to get feature ID from page title: %w", err)
+			return errors.New("unable to determine TFS feature ID from wiki page title, ")
 		}
 		featureWorkItemID = uint32(id)
 	}
@@ -173,7 +172,6 @@ func createTasks(ctx context.Context, featureID int, tasks []wiki.Task) error {
 		}
 
 		progressbar.Increment()
-		time.Sleep(time.Second / 2)
 	}
 	_, _ = progressbar.Stop()
 

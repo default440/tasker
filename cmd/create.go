@@ -2,8 +2,12 @@ package cmd
 
 import (
 	"context"
+	"tasker/browser"
 	"tasker/tfs"
+	"tasker/tfs/workitem"
 
+	"github.com/microsoft/azure-devops-go-api/azuredevops/workitemtracking"
+	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -31,9 +35,9 @@ var (
 		},
 	}
 
-	estimate         uint8
-	parentWorkItemID uint32
-	openBrowser      bool
+	estimate          uint8
+	parentWorkItemID  uint32
+	openTaskInBrowser bool
 )
 
 func init() {
@@ -46,7 +50,7 @@ func init() {
 
 	createCmd.PersistentFlags().Uint8VarP(&estimate, "estimate", "e", 0, "The original estimate of work required to complete the task (in person hours)")
 	createCmd.PersistentFlags().Uint32VarP(&parentWorkItemID, "parent", "p", 0, "Id of parent User Story (default to '*Общие задачи*' of current sprint)")
-	createCmd.PersistentFlags().BoolVarP(&openBrowser, "open", "o", false, "Open created task in browser?")
+	createCmd.PersistentFlags().BoolVarP(&openTaskInBrowser, "open", "o", false, "Open created task in browser?")
 
 	cobra.CheckErr(createCmd.MarkPersistentFlagRequired("estimate"))
 
@@ -57,9 +61,43 @@ func init() {
 }
 
 func createTaskCommand(ctx context.Context, title, description string) error {
+	spinner, _ := pterm.DefaultSpinner.Start()
+	defer func() {
+		_ = spinner.Stop()
+	}()
+
+	parentUserStoryNamePattern := viper.GetString("tfsCommonUserStoryNamePattern")
+
 	a, err := tfs.NewAPI(ctx)
 	if err != nil {
 		return err
 	}
-	return a.CreateTask(ctx, title, description, int(estimate), int(parentWorkItemID), nil, nil, openBrowser)
+
+	task, err := a.CreateTask(ctx, title, description, int(estimate), int(parentWorkItemID), nil, nil, parentUserStoryNamePattern)
+	printCreateTaskResult(task, err, spinner)
+	openInBrowser(task)
+
+	return err
+}
+
+func printCreateTaskResult(task *workitemtracking.WorkItem, err error, spinner *pterm.SpinnerPrinter) {
+	if task != nil {
+		taskURL := workitem.GetURL(task)
+		if err == nil {
+			spinner.Success(taskURL)
+		} else {
+			spinner.Warning(taskURL)
+		}
+	}
+
+	if err != nil {
+		spinner.Fail(err.Error())
+	}
+}
+
+func openInBrowser(task *workitemtracking.WorkItem) {
+	if openTaskInBrowser && task != nil {
+		href := workitem.GetURL(task)
+		browser.OpenURL(href)
+	}
 }

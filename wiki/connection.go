@@ -14,7 +14,7 @@ func NewClient() (*goconfluence.API, error) {
 	baseAddress := viper.GetString("wikiBaseAddress")
 	accessToken := viper.GetString("wikiAccessToken")
 
-	wikiAddress, err := jointURL(baseAddress, "rest/api")
+	wikiAddress, err := joinURL(baseAddress, "rest/api")
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +32,7 @@ func NewClient() (*goconfluence.API, error) {
 	return goconfluence.NewAPIWithClient(wikiAddress, client)
 }
 
-func jointURL(base, relPath string) (string, error) {
+func joinURL(base, relPath string) (string, error) {
 	u, err := url.Parse(base)
 	if err != nil {
 		return "", err
