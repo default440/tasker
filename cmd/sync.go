@@ -68,7 +68,7 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 	if featureWorkItemID <= 0 {
 		id, err := strconv.ParseUint(featureIDRegexp.FindString(content.Title), 10, 32)
 		if err != nil {
-			return errors.New("unable to determine TFS feature ID from wiki page title, ")
+			return errors.New("unable to determine TFS feature ID from wiki page title")
 		}
 		featureWorkItemID = uint32(id)
 	}
