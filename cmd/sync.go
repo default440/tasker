@@ -40,12 +40,16 @@ var (
 	featureIDRegexp         = regexp.MustCompile(`\d+`)
 	startedWithNumberRegexp = regexp.MustCompile(`^\d+`)
 	featureWorkItemID       uint32
+	noUpdate                bool
+	noCreate                bool
 )
 
 func init() {
 	rootCmd.AddCommand(syncCmd)
 
 	syncCmd.Flags().Uint32VarP(&featureWorkItemID, "feature", "f", 0, "ID of feature User Story (in case wiki page title not contains it)")
+	syncCmd.Flags().BoolVar(&noUpdate, "no-update", false, "Do not update existing tasks")
+	syncCmd.Flags().BoolVar(&noCreate, "no-create", false, "Do not create new tasks")
 }
 
 func syncCommand(ctx context.Context, wikiPageID int) error {
@@ -78,6 +82,21 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 		return err
 	}
 
+	tasks = filterTasks(tasks, func(t wiki.Task) bool {
+		switch {
+		case noCreate && t.TfsTaskID == 0:
+		case noUpdate && t.TfsTaskID != 0:
+		default:
+			return true
+		}
+		return false
+	})
+
+	if len(tasks) == 0 {
+		fmt.Println("nothing to create or update")
+		return nil
+	}
+
 	err = requestConfirmation(tasks)
 	if err != nil {
 		return err
@@ -91,6 +110,16 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 	err = updateWikiPage(api, content, doc)
 
 	return err
+}
+
+func filterTasks(tasks []wiki.Task, predicate func(wiki.Task) bool) []wiki.Task {
+	var filtered []wiki.Task
+	for _, t := range tasks {
+		if predicate(t) {
+			filtered = append(filtered, t)
+		}
+	}
+	return filtered
 }
 
 func updateWikiPage(api *goconfluence.API, content *goconfluence.Content, doc *goquery.Document) error {
