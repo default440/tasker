@@ -35,17 +35,22 @@ func NewClient(ctx context.Context, conn *azuredevops.Connection, team, project 
 	}, nil
 }
 
-func (api *Client) Update(ctx context.Context, taskID int, title, description string) error {
+func (api *Client) Update(ctx context.Context, taskID int, title, description string, estimate float32) error {
 	fields := []webapi.JsonPatchOperation{
 		{
-			Op:    &webapi.OperationValues.Add,
+			Op:    &webapi.OperationValues.Replace,
 			Path:  ptr.FromStr("/fields/System.Title"),
 			Value: title,
 		},
 		{
-			Op:    &webapi.OperationValues.Add,
+			Op:    &webapi.OperationValues.Replace,
 			Path:  ptr.FromStr("/fields/System.Description"),
 			Value: description,
+		},
+		{
+			Op:    &webapi.OperationValues.Replace,
+			Path:  ptr.FromStr("/fields/Microsoft.VSTS.Scheduling.OriginalEstimate"),
+			Value: estimate,
 		},
 	}
 	_, err := api.client.UpdateWorkItem(ctx, workitemtracking.UpdateWorkItemArgs{
@@ -94,9 +99,8 @@ func (api *Client) FindUserStory(ctx context.Context, namePattern, iterationPath
 	return nil, nil
 }
 
-func (api *Client) Create(ctx context.Context, title, description, areaPath, iterationPath string, estimate int, relations []*Relation, tags []string) (*workitemtracking.WorkItem, error) {
+func (api *Client) Create(ctx context.Context, title, description, areaPath, iterationPath string, estimate float32, relations []*Relation, tags []string) (*workitemtracking.WorkItem, error) {
 	discipline := viper.GetString("tfsDiscipline")
-
 	tags = append(tags, "tasker")
 
 	fields := []webapi.JsonPatchOperation{

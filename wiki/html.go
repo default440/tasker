@@ -26,7 +26,7 @@ const (
 type Task struct {
 	Title       string
 	Description string
-	Estimate    int
+	Estimate    float32
 	TfsTaskID   int
 	TfsColumn   *goquery.Selection
 }
@@ -82,7 +82,8 @@ func ParseTasks(body string) ([]Task, *goquery.Document, error) {
 						html, _ := td.Html()
 						task.Description = removeExtraSpaces(html)
 					case estColumn:
-						task.Estimate, _ = strconv.Atoi(strings.TrimSpace(td.Text()))
+						floatValue, _ := strconv.ParseFloat(strings.TrimSpace(td.Text()), 32)
+						task.Estimate = float32(floatValue)
 					case tfsColumn:
 						task.TfsTaskID = parseTfsTaskID(td)
 						task.TfsColumn = td

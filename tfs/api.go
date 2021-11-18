@@ -42,7 +42,7 @@ func NewAPI(ctx context.Context) (*API, error) {
 	}, nil
 }
 
-func (a *API) CreateTask(ctx context.Context, title, description string, estimate, parentID int, relations []*workitem.Relation, tags []string, parentNamePattern string) (*workitemtracking.WorkItem, error) {
+func (a *API) CreateTask(ctx context.Context, title, description string, estimate float32, parentID int, relations []*workitem.Relation, tags []string, parentNamePattern string) (*workitemtracking.WorkItem, error) {
 	var err error
 	var parent *workitemtracking.WorkItem
 
@@ -68,7 +68,7 @@ func (a *API) CreateTask(ctx context.Context, title, description string, estimat
 	iterationPath := workitem.GetIterationPath(parent)
 	areaPath := workitem.GetAreaPath(parent)
 
-	task, err := a.Client.Create(ctx, title, description, areaPath, iterationPath, int(estimate), relations, tags)
+	task, err := a.Client.Create(ctx, title, description, areaPath, iterationPath, estimate, relations, tags)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (a *API) findParent(ctx context.Context, namePattern string) (*workitemtrac
 	return nil, errors.New("active user story with name contains '" + namePattern + "' not found in current and previous sprints")
 }
 
-func (a *API) CreateFeatureTask(ctx context.Context, title, description string, estimate int, feature *workitemtracking.WorkItem) (*workitemtracking.WorkItem, error) {
+func (a *API) CreateFeatureTask(ctx context.Context, title, description string, estimate float32, feature *workitemtracking.WorkItem) (*workitemtracking.WorkItem, error) {
 	iterationPath := workitem.GetIterationPath(feature)
 	areaPath := workitem.GetAreaPath(feature)
 	relations := []*workitem.Relation{
@@ -113,5 +113,5 @@ func (a *API) CreateFeatureTask(ctx context.Context, title, description string, 
 		},
 	}
 
-	return a.Client.Create(ctx, title, description, areaPath, iterationPath, int(estimate), relations, []string{})
+	return a.Client.Create(ctx, title, description, areaPath, iterationPath, estimate, relations, []string{})
 }

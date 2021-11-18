@@ -101,21 +101,9 @@ func updateWikiPage(api *goconfluence.API, content *goconfluence.Content, doc *g
 
 	spinner, _ := pterm.DefaultSpinner.WithText("Updating wiki page...").Start()
 
-	_, err = api.UpdateContent(&goconfluence.Content{
-		ID:    content.ID,
-		Type:  content.Type,
-		Title: content.Title,
-		Space: content.Space,
-		Body: goconfluence.Body{
-			Storage: goconfluence.Storage{
-				Value:          updatedPageContent,
-				Representation: content.Body.Storage.Representation,
-			},
-		},
-		Version: &goconfluence.Version{
-			Number: content.Version.Number + 1,
-		},
-	})
+	content.Body.Storage.Value = updatedPageContent
+	content.Version.Number++
+	_, err = api.UpdateContent(content)
 
 	if err == nil {
 		spinner.Success("WIKI PAGE UPDATED")
@@ -152,7 +140,7 @@ func createTasks(ctx context.Context, featureID int, tasks []wiki.Task) error {
 		}
 
 		if t.TfsTaskID > 0 {
-			err := a.Client.Update(ctx, t.TfsTaskID, title, t.Description)
+			err := a.Client.Update(ctx, t.TfsTaskID, title, t.Description, t.Estimate)
 			if err == nil {
 				pterm.Success.Println(fmt.Sprintf("UPDATED %d %s", i+1, t.Title))
 			} else {
@@ -167,7 +155,9 @@ func createTasks(ctx context.Context, featureID int, tasks []wiki.Task) error {
 				pterm.Error.Println(fmt.Sprintf("NOT CREATED %d %s: %s", i+1, t.Title, err.Error()))
 			default:
 				pterm.Success.Println(fmt.Sprintf("CREATED %d %s", i+1, t.Title))
-				t.TfsColumn.SetHtml(createTfsTaskMacros(tfsTask))
+				if t.TfsColumn != nil {
+					t.TfsColumn.SetHtml(createTfsTaskMacros(tfsTask))
+				}
 			}
 		}
 
@@ -199,12 +189,22 @@ func requestConfirmation(tasks []wiki.Task) error {
 	var tableData [][]string
 	tableData = append(tableData, []string{"#", "Title", "Description", "Estimate", "TFS"})
 	for i, task := range tasks {
+
+		tfsTaskID := ""
+		switch {
+		case task.TfsColumn == nil:
+			tfsTaskID = "n/a"
+		case task.TfsTaskID == 0:
+		default:
+			tfsTaskID = fmt.Sprintf("%d", task.TfsTaskID)
+		}
+
 		tableData = append(tableData, []string{
 			fmt.Sprintf("%d", i+1),
 			cutString(task.Title, titleWidth, false),
 			cutString(task.Description, descriptionWidth, false),
-			fmt.Sprintf("%d", task.Estimate),
-			fmt.Sprintf("%d", task.TfsTaskID),
+			fmt.Sprintf("%v", task.Estimate),
+			tfsTaskID,
 		})
 	}
 
