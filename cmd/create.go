@@ -100,6 +100,6 @@ func printCreateTaskResult(task *workitemtracking.WorkItem, err error, spinner *
 func openInBrowser(task *workitemtracking.WorkItem) {
 	if openTaskInBrowser && task != nil {
 		href := workitem.GetURL(task)
-		browser.OpenURL(href)
+		_ = browser.OpenURL(href)
 	}
 }
