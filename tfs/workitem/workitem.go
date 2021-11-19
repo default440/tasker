@@ -47,11 +47,6 @@ func (api *Client) Update(ctx context.Context, taskID int, title, description st
 			Path:  ptr.FromStr("/fields/System.Description"),
 			Value: description,
 		},
-		{
-			Op:    &webapi.OperationValues.Replace,
-			Path:  ptr.FromStr("/fields/Microsoft.VSTS.Scheduling.OriginalEstimate"),
-			Value: estimate,
-		},
 	}
 	_, err := api.client.UpdateWorkItem(ctx, workitemtracking.UpdateWorkItemArgs{
 		Id:       ptr.FromInt(taskID),
