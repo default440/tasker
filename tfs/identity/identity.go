@@ -32,7 +32,7 @@ func Get(ctx context.Context, conn *azuredevops.Connection) (string, error) {
 	}
 
 	if len(*identities) > 1 {
-		return "", errors.New("user name not unique")
+		return "", errors.New("user filter not unique")
 	}
 
 	identity := (*identities)[0]

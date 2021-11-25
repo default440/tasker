@@ -2,6 +2,7 @@ package prettyprint
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 )
 
@@ -10,5 +11,5 @@ func JSONObject(obj interface{}) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(string(j))
+	fmt.Println(string(j))
 }

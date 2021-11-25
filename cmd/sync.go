@@ -12,7 +12,6 @@ import (
 	"tasker/tfs"
 	"tasker/wiki"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/eiannone/keyboard"
 	"github.com/google/uuid"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/workitemtracking"
@@ -40,16 +39,16 @@ var (
 	featureIDRegexp         = regexp.MustCompile(`\d+`)
 	startedWithNumberRegexp = regexp.MustCompile(`^\d+`)
 	featureWorkItemID       uint32
-	noUpdate                bool
-	noCreate                bool
+	skipExistsingTasks      bool
+	skipNewTasks            bool
 )
 
 func init() {
 	rootCmd.AddCommand(syncCmd)
 
 	syncCmd.Flags().Uint32VarP(&featureWorkItemID, "feature", "f", 0, "ID of feature User Story (in case wiki page title not contains it)")
-	syncCmd.Flags().BoolVar(&noUpdate, "no-update", false, "Do not update existing tasks")
-	syncCmd.Flags().BoolVar(&noCreate, "no-create", false, "Do not create new tasks")
+	syncCmd.Flags().BoolVar(&skipExistsingTasks, "create-only", false, "Do not update existing tasks")
+	syncCmd.Flags().BoolVar(&skipNewTasks, "update-only", false, "Do not create new tasks")
 }
 
 func syncCommand(ctx context.Context, wikiPageID int) error {
@@ -65,6 +64,7 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 			"version",
 		},
 	})
+
 	if err != nil {
 		return err
 	}
@@ -77,19 +77,20 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 		featureWorkItemID = uint32(id)
 	}
 
-	tasks, doc, err := wiki.ParseTasks(content.Body.Storage.Value)
+	tasks, err := wiki.ParseTasks(content.Body.Storage.Value)
 	if err != nil {
 		return err
 	}
 
-	tasks = filterTasks(tasks, func(t wiki.Task) bool {
+	tasks = filterTasks(tasks, func(t *wiki.Task) bool {
 		switch {
-		case noCreate && t.TfsTaskID == 0:
-		case noUpdate && t.TfsTaskID != 0:
+		case skipNewTasks && t.TfsTaskID == 0:
+			return false
+		case skipExistsingTasks && t.TfsTaskID != 0:
+			return false
 		default:
 			return true
 		}
-		return false
 	})
 
 	if len(tasks) == 0 {
@@ -107,13 +108,13 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 		return err
 	}
 
-	err = updateWikiPage(api, content, doc)
+	err = updateWikiPage(api, content, tasks)
 
 	return err
 }
 
-func filterTasks(tasks []wiki.Task, predicate func(wiki.Task) bool) []wiki.Task {
-	var filtered []wiki.Task
+func filterTasks(tasks []*wiki.Task, predicate func(*wiki.Task) bool) []*wiki.Task {
+	var filtered []*wiki.Task
 	for _, t := range tasks {
 		if predicate(t) {
 			filtered = append(filtered, t)
@@ -122,28 +123,48 @@ func filterTasks(tasks []wiki.Task, predicate func(wiki.Task) bool) []wiki.Task 
 	return filtered
 }
 
-func updateWikiPage(api *goconfluence.API, content *goconfluence.Content, doc *goquery.Document) error {
-	updatedPageContent, err := doc.Html()
+func updateWikiPage(api *goconfluence.API, content *goconfluence.Content, tasks []*wiki.Task) error {
+	spinner, _ := pterm.DefaultSpinner.WithText("Updating wiki page...").Start()
+
+	body := content.Body.Storage.Value
+	updatedBody, modified, err := wiki.UpdatePageContent(body, tasks)
 	if err != nil {
 		return err
 	}
 
-	spinner, _ := pterm.DefaultSpinner.WithText("Updating wiki page...").Start()
+	if !modified {
+		spinner.Success("Wiki page not changed")
+		return nil
+	}
 
-	content.Body.Storage.Value = updatedPageContent
-	content.Version.Number++
-	_, err = api.UpdateContent(content)
+	_, err = api.UpdateContent(&goconfluence.Content{
+		ID:    content.ID,
+		Type:  content.Type,
+		Title: content.Title,
+		Space: goconfluence.Space{
+			Key: content.Space.Key,
+		},
+		Body: goconfluence.Body{
+			Storage: goconfluence.Storage{
+				Value:          updatedBody,
+				Representation: "storage",
+			},
+		},
+		Version: &goconfluence.Version{
+			Number: content.Version.Number + 1,
+		},
+	})
 
 	if err == nil {
-		spinner.Success("WIKI PAGE UPDATED")
+		spinner.Success("Wiki page updated")
 	} else {
-		spinner.Warning("WIKI PDAGE NOT UPDATED: " + err.Error())
+		spinner.Fail("Wiki pdage not updated: " + err.Error())
 	}
 	_ = spinner.Stop()
 	return err
 }
 
-func createTasks(ctx context.Context, featureID int, tasks []wiki.Task) error {
+func createTasks(ctx context.Context, featureID int, tasks []*wiki.Task) error {
 	progressbar, err := pterm.DefaultProgressbar.WithTitle("Processing...").WithTotal(len(tasks)).WithRemoveWhenDone().Start()
 	if err != nil {
 		return err
@@ -177,16 +198,11 @@ func createTasks(ctx context.Context, featureID int, tasks []wiki.Task) error {
 			}
 		} else {
 			tfsTask, err := a.CreateFeatureTask(ctx, title, t.Description, t.Estimate, feature)
-			switch {
-			case err != nil && errors.Is(err, tfs.ErrFailedToAssign):
-				pterm.Warning.Println(fmt.Sprintf("NOT ASSIGNED %d %s: %s", i+1, t.Title, err.Error()))
-			case err != nil:
-				pterm.Error.Println(fmt.Sprintf("NOT CREATED %d %s: %s", i+1, t.Title, err.Error()))
-			default:
+			if err == nil {
 				pterm.Success.Println(fmt.Sprintf("CREATED %d %s", i+1, t.Title))
-				if t.TfsColumn != nil {
-					t.TfsColumn.SetHtml(createTfsTaskMacros(tfsTask))
-				}
+				t.Update(createTfsTaskMacros(tfsTask))
+			} else {
+				pterm.Error.Println(fmt.Sprintf("NOT CREATED %d %s: %s", i+1, t.Title, err.Error()))
 			}
 		}
 
@@ -212,7 +228,7 @@ func createTfsTaskMacros(task *workitemtracking.WorkItem) string {
 		</div>`
 }
 
-func requestConfirmation(tasks []wiki.Task) error {
+func requestConfirmation(tasks []*wiki.Task) error {
 	titleWidth, descriptionWidth := getColumnsWidth()
 
 	var tableData [][]string
@@ -221,7 +237,7 @@ func requestConfirmation(tasks []wiki.Task) error {
 
 		tfsTaskID := ""
 		switch {
-		case task.TfsColumn == nil:
+		case task.TfsTaskID < 0:
 			tfsTaskID = "n/a"
 		case task.TfsTaskID == 0:
 		default:

@@ -39,6 +39,7 @@ var (
 	parentWorkItemID  uint32
 	openTaskInBrowser bool
 	tags              []string
+	unassignedTask    bool
 )
 
 func init() {
@@ -53,6 +54,7 @@ func init() {
 	createCmd.PersistentFlags().Uint32VarP(&parentWorkItemID, "parent", "p", 0, "Id of parent User Story (if not specified looks up by according name pattern)")
 	createCmd.PersistentFlags().BoolVarP(&openTaskInBrowser, "open", "o", false, "Open created task in browser?")
 	createCmd.PersistentFlags().StringSliceVarP(&tags, "tag", "t", []string{}, "Tags of the task. Can be separated by comma or specified multiple times.")
+	createCmd.PersistentFlags().BoolVarP(&unassignedTask, "unassigned", "u", false, "Do not assign task")
 
 	cobra.CheckErr(createCmd.MarkPersistentFlagRequired("estimate"))
 
@@ -75,7 +77,7 @@ func createTaskCommand(ctx context.Context, title, description string) error {
 		return err
 	}
 
-	task, err := a.CreateTask(ctx, title, description, estimate, int(parentWorkItemID), nil, tags, parentUserStoryNamePattern)
+	task, err := a.CreateTask(ctx, title, description, estimate, int(parentWorkItemID), nil, tags, parentUserStoryNamePattern, !unassignedTask)
 	printCreateTaskResult(task, err, spinner)
 	openInBrowser(task)
 

@@ -1,6 +1,8 @@
 package wiki
 
 import (
+	"errors"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -11,6 +13,9 @@ import (
 var (
 	tasksRegexp    = regexp.MustCompile("(?i).*задач.*")
 	spacesRegexp   = regexp.MustCompile(`\s+(<)|(>)\s+`)
+	tablesRegexp   = regexp.MustCompile(`(?i)\<table(.|\s)+?\</table>`)
+	emoticonRegexp = regexp.MustCompile(`(?i)(\<ac\:emoticon(.|\s)*?)\/\>`)
+	cdataRegexp    = regexp.MustCompile(`(?i)(<!--\[CDATA\[((.|\s)*?)\]\]-->)`)
 	columnsMapping = make(map[int]taskColumn)
 )
 
@@ -28,7 +33,15 @@ type Task struct {
 	Description string
 	Estimate    float32
 	TfsTaskID   int
-	TfsColumn   *goquery.Selection
+	tfsColumn   *goquery.Selection
+	updated     bool
+}
+
+func (t *Task) Update(html string) {
+	if t.tfsColumn != nil {
+		t.tfsColumn.SetHtml(html)
+		t.updated = true
+	}
 }
 
 func (t *Task) isEmpty() bool {
@@ -38,15 +51,19 @@ func (t *Task) isEmpty() bool {
 		t.TfsTaskID == 0
 }
 
-func ParseTasks(body string) ([]Task, *goquery.Document, error) {
+func ParseTasks(body string) ([]*Task, error) {
+	body = fixMarkup(body)
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(body))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	var tasks []Task
+	var tasks []*Task
 
 	_ = doc.Find("table").
+		Each(func(i int, s *goquery.Selection) {
+			s.SetAttr("index", fmt.Sprintf("%d", i))
+		}).
 		FilterFunction(func(i int, s *goquery.Selection) bool {
 			return tasksRegexp.MatchString(s.Prev().Text())
 		}).
@@ -70,7 +87,7 @@ func ParseTasks(body string) ([]Task, *goquery.Document, error) {
 				return
 			}
 
-			task := Task{}
+			task := &Task{}
 			cols.Each(func(colNum int, td *goquery.Selection) {
 				column, ok := columnsMapping[colNum]
 				if ok {
@@ -86,7 +103,7 @@ func ParseTasks(body string) ([]Task, *goquery.Document, error) {
 						task.Estimate = float32(floatValue)
 					case tfsColumn:
 						task.TfsTaskID = parseTfsTaskID(td)
-						task.TfsColumn = td
+						task.tfsColumn = td
 					}
 				}
 			})
@@ -96,7 +113,7 @@ func ParseTasks(body string) ([]Task, *goquery.Document, error) {
 			}
 		})
 
-	return tasks, doc, nil
+	return tasks, nil
 }
 
 func removeExtraSpaces(value string) string {
@@ -113,4 +130,61 @@ func parseTfsTaskID(td *goquery.Selection) int {
 		return 0
 	}
 	return taskID
+}
+
+func UpdatePageContent(body string, tasks []*Task) (string, bool, error) {
+	updatedTasks := getUpdatedTasks(tasks)
+	if len(updatedTasks) == 0 {
+		return "", false, nil
+	}
+
+	tables := make(map[*goquery.Selection]int)
+	for _, v := range tasks {
+		table := v.tfsColumn.Parent().Parent().Parent()
+		if _, ok := tables[table]; !ok {
+			indexStr, _ := table.Attr("index")
+			index, err := strconv.Atoi(indexStr)
+			if err != nil {
+				return "", false, err
+			}
+			tables[table] = index
+		}
+	}
+
+	tablesIndexes := tablesRegexp.FindAllStringIndex(body, -1)
+	if len(tablesIndexes) < len(tables) {
+		return "", false, errors.New("not all tasks tables found")
+	}
+
+	for table, index := range tables {
+		i := tablesIndexes[index]
+		modifiedBody := body[:i[0]]
+		tableContent, _ := table.Html()
+		modifiedBody += `<table class="fixed-table wrapped">` + restoreMarkup(tableContent) + `</table>`
+		modifiedBody += body[i[1]:]
+		body = modifiedBody
+		tablesIndexes = tablesRegexp.FindAllStringIndex(body, -1)
+	}
+
+	return body, true, nil
+}
+
+func getUpdatedTasks(tasks []*Task) []*Task {
+	var updated []*Task
+	for _, v := range tasks {
+		if v.updated {
+			updated = append(updated, v)
+		}
+	}
+	return updated
+}
+
+func fixMarkup(markup string) string {
+	markup = emoticonRegexp.ReplaceAllString(markup, "$1></ac:emoticon>")
+	return markup
+}
+
+func restoreMarkup(markup string) string {
+	markup = cdataRegexp.ReplaceAllString(markup, "<![CDATA[$2]]>")
+	return markup
 }

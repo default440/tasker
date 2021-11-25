@@ -42,13 +42,16 @@ func NewAPI(ctx context.Context) (*API, error) {
 	}, nil
 }
 
-func (a *API) CreateTask(ctx context.Context, title, description string, estimate float32, parentID int, relations []*workitem.Relation, tags []string, parentNamePattern string) (*workitemtracking.WorkItem, error) {
+func (a *API) CreateTask(ctx context.Context, title, description string, estimate float32, parentID int, relations []*workitem.Relation, tags []string, parentNamePattern string, assign bool) (*workitemtracking.WorkItem, error) {
 	var err error
 	var parent *workitemtracking.WorkItem
+	var user string
 
-	user, err := identity.Get(ctx, a.conn)
-	if err != nil {
-		return nil, err
+	if assign {
+		user, err = identity.Get(ctx, a.conn)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if parentID > 0 {
@@ -68,14 +71,20 @@ func (a *API) CreateTask(ctx context.Context, title, description string, estimat
 	iterationPath := workitem.GetIterationPath(parent)
 	areaPath := workitem.GetAreaPath(parent)
 
+	if description == "" {
+		description = title
+	}
+
 	task, err := a.Client.Create(ctx, title, description, areaPath, iterationPath, estimate, relations, tags)
 	if err != nil {
 		return nil, err
 	}
 
-	err = a.Client.Assign(ctx, task, user)
-	if err != nil {
-		return task, err
+	if assign {
+		err = a.Client.Assign(ctx, task, user)
+		if err != nil {
+			return task, err
+		}
 	}
 
 	return task, nil

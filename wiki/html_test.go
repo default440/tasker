@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func setNodesToNil(tasks []Task) {
+func setNodesToNil(tasks []*Task) {
 	for i := 0; i < len(tasks); i++ {
-		tasks[i].TfsColumn = nil
+		tasks[i].tfsColumn = nil
 	}
 }
 
@@ -17,12 +17,12 @@ func Test_ParseTasks_Page1(t *testing.T) {
 	file, err := ioutil.ReadFile("../testdata/wiki_page_1.html")
 	assert.NoError(t, err)
 
-	tasks, _, err := ParseTasks(string(file))
+	tasks, err := ParseTasks(string(file))
 	assert.NoError(t, err)
 	assert.NotEmpty(t, tasks)
 	assert.Len(t, tasks, 6)
 
-	expected := []Task{
+	expected := []*Task{
 		{
 			Title:       "Batch синхронизация пользователей",
 			Description: "<p>Добавление</p><p>Удаление</p><p>Редактирование</p>",
@@ -63,12 +63,12 @@ func Test_ParseTasks_Page2(t *testing.T) {
 	file, err := ioutil.ReadFile("../testdata/wiki_page_2.html")
 	assert.NoError(t, err)
 
-	tasks, _, err := ParseTasks(string(file))
+	tasks, err := ParseTasks(string(file))
 	assert.NoError(t, err)
 	assert.NotEmpty(t, tasks)
 	assert.Len(t, tasks, 10)
 
-	expected := []Task{
+	expected := []*Task{
 		{
 			Title:       "Репозиторий хранения классификатора",
 			Description: "<p>Зфкек 1 Сохранение (Upsert) файла классификатора</p><p>Cохранение версии классификатора (для получения версии без необходимости чтения XML)</p><p>Сохранение (Upsert) файла XSD схемы</p><p>Получение классификатора</p><p>Получение версии классификатора</p><p>Получение XSD схемы</p><p>Удаление классификатора</p>",
@@ -95,7 +95,7 @@ func Test_ParseTasks_Page2(t *testing.T) {
 		},
 		{
 			Title:       "События журнала действий пользователя",
-			Description: "<p><span style=\"color: rgb(23,43,77);\">Загрузка DPI-классификатора</span></p><p><span style=\"color: rgb(23,43,77);\">Удаление DPI-классификатора</span></p><p><span style=\"color: rgb(23,43,77);\"><ac:emoticon ac:name=\"question\">Загрузка XSD-схемы</ac:emoticon></span></p>",
+			Description: "<p><span style=\"color: rgb(23,43,77);\">Загрузка DPI-классификатора</span></p><p><span style=\"color: rgb(23,43,77);\">Удаление DPI-классификатора</span></p><p><span style=\"color: rgb(23,43,77);\"><ac:emoticon ac:name=\"question\"></ac:emoticon>Загрузка XSD-схемы</span></p>",
 			Estimate:    5,
 			TfsTaskID:   71715,
 		},
