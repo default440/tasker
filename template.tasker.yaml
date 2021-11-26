@@ -1,0 +1,11 @@
+tfsBaseAddress: http://msk-tfs-t.infotecs-nt:8080/tfs/SrvNccCollection
+tfsDiscipline: Development
+tfsProject: NSMS
+tfsTeam: SMP
+tfsUserFilter:
+tfsAccessToken:
+tfsBugfixUserStoryNamePattern: bugfix
+tfsCommonUserStoryNamePattern: общие задачи
+tfsBugTitleTemplate: BUG {{.ID}} {{.Title}}
+wikiBaseAddress: https://wiki.infotecs.int
+wikiAccessToken:

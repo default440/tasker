@@ -138,29 +138,37 @@ func UpdatePageContent(body string, tasks []*Task) (string, bool, error) {
 		return "", false, nil
 	}
 
-	tables := make(map[*goquery.Selection]int)
+	tables := make(map[int]*goquery.Selection)
 	for _, v := range tasks {
 		table := v.tfsColumn.Parent().Parent().Parent()
-		if _, ok := tables[table]; !ok {
-			indexStr, _ := table.Attr("index")
-			index, err := strconv.Atoi(indexStr)
-			if err != nil {
-				return "", false, err
-			}
-			tables[table] = index
+		indexStr, _ := table.Attr("index")
+		index, err := strconv.Atoi(indexStr)
+
+		if err != nil {
+			return "", false, err
+		}
+
+		if _, ok := tables[index]; !ok {
+			tables[index] = table
 		}
 	}
 
 	tablesIndexes := tablesRegexp.FindAllStringIndex(body, -1)
-	if len(tablesIndexes) < len(tables) {
+	if len(tablesIndexes) != len(tables) {
 		return "", false, errors.New("not all tasks tables found")
 	}
 
-	for table, index := range tables {
+	for index, table := range tables {
+		tableElelemnt := table.Clone()
+		tableElelemnt.Empty()
+		tableElelemnt.RemoveAttr("index")
+		table.WrapInnerSelection(tableElelemnt)
+		tableMarkup, _ := table.Html()
+		tableMarkup = restoreMarkup(tableMarkup)
+
 		i := tablesIndexes[index]
 		modifiedBody := body[:i[0]]
-		tableContent, _ := table.Html()
-		modifiedBody += `<table class="fixed-table wrapped">` + restoreMarkup(tableContent) + `</table>`
+		modifiedBody += tableMarkup
 		modifiedBody += body[i[1]:]
 		body = modifiedBody
 		tablesIndexes = tablesRegexp.FindAllStringIndex(body, -1)
