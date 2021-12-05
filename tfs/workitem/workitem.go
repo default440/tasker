@@ -94,6 +94,37 @@ func (api *Client) FindUserStory(ctx context.Context, namePattern, iterationPath
 	return nil, nil
 }
 
+func (api *Client) FindRequirement(ctx context.Context, namePattern, iterationPath string) (*workitemtracking.WorkItem, error) {
+	if namePattern == "" {
+		return nil, errors.New("user story name pattern is empty")
+	}
+
+	queryResult, err := api.client.QueryByWiql(ctx, workitemtracking.QueryByWiqlArgs{
+		Wiql: &workitemtracking.Wiql{
+			Query: ptr.FromStr(`
+				SELECT [Id], [Title], [System.AreaPath], [System.IterationPath]
+				FROM WorkItems
+				WHERE [Work Item Type] = 'Requirement'
+					AND [System.IterationPath] = '` + iterationPath + `'
+					AND [Title] CONTAINS '` + namePattern + `'
+					AND [State] = 'Proposed'
+			`),
+		},
+		Project: &api.project,
+		Team:    &api.team,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(*queryResult.WorkItems) > 0 {
+		userStory := &(*queryResult.WorkItems)[0]
+		return api.Get(ctx, *userStory.Id)
+	}
+
+	return nil, nil
+}
+
 func (api *Client) Create(ctx context.Context, title, description, areaPath, iterationPath string, estimate float32, relations []*Relation, tags []string) (*workitemtracking.WorkItem, error) {
 	discipline := viper.GetString("tfsDiscipline")
 	tags = append(tags, "tasker")

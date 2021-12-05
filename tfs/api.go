@@ -99,7 +99,7 @@ func (a *API) findParent(ctx context.Context, namePattern string) (*workitemtrac
 	for i := len(*iterations) - 1; i >= 0; i-- {
 		iteration := (*iterations)[i]
 		if *iteration.Attributes.TimeFrame == "current" || *iteration.Attributes.TimeFrame == "past" {
-			userStory, err := a.Client.FindUserStory(ctx, namePattern, *iteration.Path)
+			userStory, err := a.Client.FindRequirement(ctx, namePattern, *iteration.Path)
 			if err != nil {
 				return nil, err
 			}
