@@ -91,6 +91,23 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 		return err
 	}
 
+	tables, err := groupByTable(tasks)
+	if err != nil {
+		return err
+	}
+
+	for _, table := range tables {
+		addTitlePrefixes(table, len(tables) > 1)
+	}
+
+	if syncCmdFlagPartNumber > 0 {
+		if int(syncCmdFlagPartNumber) > len(tables) {
+			return errors.New("invalid table (part) number")
+		}
+		table := tables[syncCmdFlagPartNumber-1]
+		tasks = table.Tasks
+	}
+
 	tasks = filterTasks(tasks, func(t *wiki.Task) bool {
 		switch {
 		case syncCmdFlagSkipNewTasks && t.TfsTaskID == 0:
@@ -107,23 +124,8 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 		return nil
 	}
 
-	tables, err := groupByTable(tasks)
-	if err != nil {
-		return err
-	}
-
-	for _, t := range tables {
-		addTitlePrefixes(t.Tasks, t.Number, len(tables) > 1)
-	}
-
-	if syncCmdFlagPartNumber > 0 {
-		if int(syncCmdFlagPartNumber) > len(tables) {
-			return errors.New("invalid table (part) number")
-		}
-		table := tables[syncCmdFlagPartNumber-1]
-		tables = []*Table{table}
-		tasks = table.Tasks
-	}
+	// remove empty and not selected tables by grouping remained tasks again
+	tables, _ = groupByTable(tasks)
 
 	err = requestConfirmation(tables)
 	if err != nil {
@@ -249,19 +251,16 @@ func createTfsTaskMacros(task *workitemtracking.WorkItem) string {
 		</div>`
 }
 
-func addTitlePrefixes(tasks []*wiki.Task, partNumber int, withPartNumber bool) {
-	syncCmdFlagTitleCustomPrefix = strings.TrimSpace(syncCmdFlagTitleCustomPrefix)
-
-	for i, t := range tasks {
+func addTitlePrefixes(table *Table, withPartNumber bool) {
+	for i, t := range table.Tasks {
 		if !syncCmdFlagNoTitleAutoPrefix && !startedWithNumberRegexp.MatchString(t.Title) {
 			t.Title = fmt.Sprintf("%02d. %s", i+1, t.Title)
-			if withPartNumber {
-				t.Title = fmt.Sprintf("%d.%s", partNumber, t.Title)
-			}
 		}
 
-		if syncCmdFlagTitleCustomPrefix != "" {
-			t.Title = fmt.Sprintf("%s %s", syncCmdFlagTitleCustomPrefix, t.Title)
+		if len(syncCmdFlagTitleCustomPrefix) > 0 {
+			t.Title = fmt.Sprintf("%s%s", syncCmdFlagTitleCustomPrefix, t.Title)
+		} else if !syncCmdFlagNoTitleAutoPrefix && withPartNumber {
+			t.Title = fmt.Sprintf("%d.%s", table.Number, t.Title)
 		}
 	}
 }
