@@ -112,7 +112,7 @@ func (a *API) findParent(ctx context.Context, namePattern string) (*workitemtrac
 	return nil, errors.New("active user story with name contains '" + namePattern + "' not found in current and previous sprints")
 }
 
-func (a *API) CreateFeatureTask(ctx context.Context, title, description string, estimate float32, feature *workitemtracking.WorkItem) (*workitemtracking.WorkItem, error) {
+func (a *API) CreateFeatureTask(ctx context.Context, title, description string, estimate float32, feature *workitemtracking.WorkItem, tags []string) (*workitemtracking.WorkItem, error) {
 	iterationPath := workitem.GetIterationPath(feature)
 	areaPath := workitem.GetAreaPath(feature)
 	relations := []*workitem.Relation{
@@ -122,5 +122,5 @@ func (a *API) CreateFeatureTask(ctx context.Context, title, description string, 
 		},
 	}
 
-	return a.Client.Create(ctx, title, description, areaPath, iterationPath, estimate, relations, []string{})
+	return a.Client.Create(ctx, title, description, areaPath, iterationPath, estimate, relations, tags)
 }

@@ -51,6 +51,21 @@ func (t *Task) isEmpty() bool {
 		t.TfsTaskID == 0
 }
 
+func (t *Task) TableIndex() int {
+	table := t.Table()
+	indexStr, _ := table.Attr("index")
+	index, err := strconv.Atoi(indexStr)
+	if err == nil {
+		return index
+	}
+
+	return -1
+}
+
+func (t *Task) Table() *goquery.Selection {
+	return t.tfsColumn.Parent().Parent().Parent()
+}
+
 func ParseTasks(body string) ([]*Task, error) {
 	body = fixMarkup(body)
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(body))
@@ -139,17 +154,15 @@ func UpdatePageContent(body string, tasks []*Task) (string, bool, error) {
 	}
 
 	tables := make(map[int]*goquery.Selection)
-	for _, v := range tasks {
-		table := v.tfsColumn.Parent().Parent().Parent()
-		indexStr, _ := table.Attr("index")
-		index, err := strconv.Atoi(indexStr)
+	for _, t := range tasks {
+		tableIndex := t.TableIndex()
 
-		if err != nil {
-			return "", false, err
+		if tableIndex == -1 {
+			return "", false, errors.New("table index not found")
 		}
 
-		if _, ok := tables[index]; !ok {
-			tables[index] = table
+		if _, ok := tables[tableIndex]; !ok {
+			tables[tableIndex] = t.Table()
 		}
 	}
 

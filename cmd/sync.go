@@ -38,17 +38,26 @@ var (
 
 	featureIDRegexp         = regexp.MustCompile(`\d+`)
 	startedWithNumberRegexp = regexp.MustCompile(`^\d+`)
-	featureWorkItemID       uint32
-	skipExistsingTasks      bool
-	skipNewTasks            bool
+
+	syncCmdFlagfeatureWorkItemID  uint32
+	syncCmdFlagskipExistsingTasks bool
+	syncCmdFlagSkipNewTasks       bool
+	syncCmdFlagNoTitleAutoPrefix  bool
+	syncCmdFlagTitleCustomPrefix  string
+	syncCmdFlagTags               []string
+	syncCmdFlagPartNumber         uint32
 )
 
 func init() {
 	rootCmd.AddCommand(syncCmd)
 
-	syncCmd.Flags().Uint32VarP(&featureWorkItemID, "feature", "f", 0, "ID of feature User Story (in case wiki page title not contains it)")
-	syncCmd.Flags().BoolVar(&skipExistsingTasks, "create-only", false, "Do not update existing tasks")
-	syncCmd.Flags().BoolVar(&skipNewTasks, "update-only", false, "Do not create new tasks")
+	syncCmd.Flags().Uint32VarP(&syncCmdFlagfeatureWorkItemID, "feature", "f", 0, "ID of TFS feature work item (in case wiki page title not contains it)")
+	syncCmd.Flags().BoolVar(&syncCmdFlagskipExistsingTasks, "create-only", false, "Do not update existing tasks")
+	syncCmd.Flags().BoolVar(&syncCmdFlagSkipNewTasks, "update-only", false, "Do not create new tasks")
+	syncCmd.Flags().StringVar(&syncCmdFlagTitleCustomPrefix, "prefix", "", "Custom prefix for each task, ie 'Part 3. '")
+	syncCmd.Flags().BoolVar(&syncCmdFlagNoTitleAutoPrefix, "no-auto-prefix", false, "Do not prepend each task with index prefix")
+	syncCmd.Flags().StringSliceVarP(&tags, "tag", "t", []string{}, "Tags of the task. Can be separated by comma or specified multiple times.")
+	syncCmd.Flags().Uint32VarP(&syncCmdFlagPartNumber, "part", "p", 0, "Table number (tasks part), if tasks split into multiples tables (parts)")
 }
 
 func syncCommand(ctx context.Context, wikiPageID int) error {
@@ -69,12 +78,12 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 		return err
 	}
 
-	if featureWorkItemID <= 0 {
+	if syncCmdFlagfeatureWorkItemID <= 0 {
 		id, err := strconv.ParseUint(featureIDRegexp.FindString(content.Title), 10, 32)
 		if err != nil {
 			return errors.New("unable to determine TFS feature ID from wiki page title")
 		}
-		featureWorkItemID = uint32(id)
+		syncCmdFlagfeatureWorkItemID = uint32(id)
 	}
 
 	tasks, err := wiki.ParseTasks(content.Body.Storage.Value)
@@ -84,9 +93,9 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 
 	tasks = filterTasks(tasks, func(t *wiki.Task) bool {
 		switch {
-		case skipNewTasks && t.TfsTaskID == 0:
+		case syncCmdFlagSkipNewTasks && t.TfsTaskID == 0:
 			return false
-		case skipExistsingTasks && t.TfsTaskID != 0:
+		case syncCmdFlagskipExistsingTasks && t.TfsTaskID != 0:
 			return false
 		default:
 			return true
@@ -98,12 +107,30 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 		return nil
 	}
 
-	err = requestConfirmation(tasks)
+	tables, err := groupByTable(tasks)
 	if err != nil {
 		return err
 	}
 
-	err = createTasks(ctx, int(featureWorkItemID), tasks)
+	for _, t := range tables {
+		addTitlePrefixes(t.Tasks, t.Number, len(tables) > 1)
+	}
+
+	if syncCmdFlagPartNumber > 0 {
+		if int(syncCmdFlagPartNumber) > len(tables) {
+			return errors.New("invalid table (part) number")
+		}
+		table := tables[syncCmdFlagPartNumber-1]
+		tables = []*Table{table}
+		tasks = table.Tasks
+	}
+
+	err = requestConfirmation(tables)
+	if err != nil {
+		return err
+	}
+
+	err = createTasks(ctx, int(syncCmdFlagfeatureWorkItemID), tasks)
 	if err != nil {
 		return err
 	}
@@ -180,29 +207,23 @@ func createTasks(ctx context.Context, featureID int, tasks []*wiki.Task) error {
 		return err
 	}
 
-	for i := 0; i < progressbar.Total; i++ {
-		t := tasks[i]
-		progressbar.UpdateTitle(fmt.Sprintf("Creating %d %s", i+1, cutString(t.Title, 20, true)))
-
-		title := t.Title
-		if !startedWithNumberRegexp.MatchString(title) {
-			title = fmt.Sprintf("%02d. %s", i+1, t.Title)
-		}
+	for _, t := range tasks {
+		progressbar.UpdateTitle(fmt.Sprintf("Creating %s", cutString(t.Title, 20, true)))
 
 		if t.TfsTaskID > 0 {
-			err := a.Client.Update(ctx, t.TfsTaskID, title, t.Description, t.Estimate)
+			err := a.Client.Update(ctx, t.TfsTaskID, t.Title, t.Description, t.Estimate)
 			if err == nil {
-				pterm.Success.Println(fmt.Sprintf("UPDATED %d %s", i+1, t.Title))
+				pterm.Success.Println(fmt.Sprintf("UPDATED %s", t.Title))
 			} else {
-				pterm.Warning.Println(fmt.Sprintf("NOT UPDATED %d %s: %s", i+1, t.Title, err.Error()))
+				pterm.Warning.Println(fmt.Sprintf("NOT UPDATED %s: %s", t.Title, err.Error()))
 			}
 		} else {
-			tfsTask, err := a.CreateFeatureTask(ctx, title, t.Description, t.Estimate, feature)
+			tfsTask, err := a.CreateFeatureTask(ctx, t.Title, t.Description, t.Estimate, feature, syncCmdFlagTags)
 			if err == nil {
-				pterm.Success.Println(fmt.Sprintf("CREATED %d %s", i+1, t.Title))
+				pterm.Success.Println(fmt.Sprintf("CREATED %s", t.Title))
 				t.Update(createTfsTaskMacros(tfsTask))
 			} else {
-				pterm.Error.Println(fmt.Sprintf("NOT CREATED %d %s: %s", i+1, t.Title, err.Error()))
+				pterm.Error.Println(fmt.Sprintf("NOT CREATED %s: %s", t.Title, err.Error()))
 			}
 		}
 
@@ -228,7 +249,89 @@ func createTfsTaskMacros(task *workitemtracking.WorkItem) string {
 		</div>`
 }
 
-func requestConfirmation(tasks []*wiki.Task) error {
+func addTitlePrefixes(tasks []*wiki.Task, partNumber int, withPartNumber bool) {
+	syncCmdFlagTitleCustomPrefix = strings.TrimSpace(syncCmdFlagTitleCustomPrefix)
+
+	for i, t := range tasks {
+		if !syncCmdFlagNoTitleAutoPrefix && !startedWithNumberRegexp.MatchString(t.Title) {
+			t.Title = fmt.Sprintf("%02d. %s", i+1, t.Title)
+			if withPartNumber {
+				t.Title = fmt.Sprintf("%d.%s", partNumber, t.Title)
+			}
+		}
+
+		if syncCmdFlagTitleCustomPrefix != "" {
+			t.Title = fmt.Sprintf("%s %s", syncCmdFlagTitleCustomPrefix, t.Title)
+		}
+	}
+}
+
+func requestConfirmation(tables []*Table) error {
+	var tasksTotalCount int
+	for _, table := range tables {
+		if len(tables) > 1 {
+			pterm.DefaultSection.Printfln("Part %d", table.Number)
+		}
+
+		previewTasks(table.Tasks)
+		tasksTotalCount += len(table.Tasks)
+	}
+
+	if len(tables) > 1 {
+		pterm.DefaultSection.Printfln("Total tasks: %d", tasksTotalCount)
+	}
+
+	pterm.DefaultHeader.
+		WithFullWidth().
+		WithBackgroundStyle(pterm.NewStyle(pterm.BgDefault)).
+		WithTextStyle(pterm.NewStyle(pterm.FgCyan)).
+		Print("Press ENTER to continue. Any other key for cancel.")
+
+	_, key, err := keyboard.GetSingleKey()
+	if err != nil {
+		return err
+	}
+
+	if key != keyboard.KeyEnter {
+		return errors.New("canceled by user")
+	}
+
+	return nil
+}
+
+type Table struct {
+	Number int
+	Index  int
+	Tasks  []*wiki.Task
+}
+
+func groupByTable(tasks []*wiki.Task) ([]*Table, error) {
+	var tables []*Table
+	m := make(map[int]*Table)
+	for _, t := range tasks {
+		tableIndex := t.TableIndex()
+
+		if tableIndex == -1 {
+			return nil, errors.New("table index not found")
+		}
+
+		table, ok := m[tableIndex]
+		if !ok {
+			table = &Table{
+				Number: len(tables) + 1,
+				Index:  tableIndex,
+			}
+			tables = append(tables, table)
+			m[tableIndex] = table
+		}
+
+		table.Tasks = append(table.Tasks, t)
+	}
+
+	return tables, nil
+}
+
+func previewTasks(tasks []*wiki.Task) {
 	titleWidth, descriptionWidth := getColumnsWidth()
 
 	var tableData [][]string
@@ -253,34 +356,10 @@ func requestConfirmation(tasks []*wiki.Task) error {
 		})
 	}
 
-	textBackgroundStyle := pterm.NewStyle(pterm.BgDefault)
-	textStyle := pterm.NewStyle(pterm.FgCyan)
-
-	err := pterm.DefaultTable.
+	_ = pterm.DefaultTable.
 		WithHasHeader().
 		WithData(tableData).
 		Render()
-
-	if err != nil {
-		return err
-	}
-
-	pterm.DefaultHeader.
-		WithFullWidth().
-		WithBackgroundStyle(textBackgroundStyle).
-		WithTextStyle(textStyle).
-		Print("Press ENTER to continue. Any other key for cancel.")
-
-	_, key, err := keyboard.GetSingleKey()
-	if err != nil {
-		return err
-	}
-
-	if key != keyboard.KeyEnter {
-		return errors.New("canceled by user")
-	}
-
-	return nil
 }
 
 func cutString(value string, maxLength int, padded bool) string {
