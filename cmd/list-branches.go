@@ -13,8 +13,8 @@ import (
 var (
 	listBranchesCmd = &cobra.Command{
 		Use:   "list-branches",
-		Short: "List all branches",
-		Long:  "List all branches of current user across all repositories.",
+		Short: "List branches",
+		Long:  "List project branches across all repositories that match filter.",
 		Run: func(cmd *cobra.Command, args []string) {
 			err := listBranchesCommand(cmd.Context())
 			cobra.CheckErr(err)
@@ -28,10 +28,11 @@ var (
 func init() {
 	rootCmd.AddCommand(listBranchesCmd)
 
-	listBranchesCmd.Flags().StringVarP(&listBranchesCmdFlagProject, "project", "p", "NSMS", "Project name")
+	listBranchesCmd.Flags().StringVarP(&listBranchesCmdFlagProject, "project", "p", "", "Project name")
 	listBranchesCmd.Flags().StringVarP(&listBranchesCmdFlagFilter, "filter", "f", "", "Branch filter")
 
-	// cobra.CheckErr(listBranchesCmd.MarkFlagRequired("project"))
+	cobra.CheckErr(listBranchesCmd.MarkFlagRequired("filter"))
+	cobra.CheckErr(listBranchesCmd.MarkFlagRequired("project"))
 }
 
 func listBranchesCommand(ctx context.Context) error {
