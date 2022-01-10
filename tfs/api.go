@@ -8,8 +8,8 @@ import (
 	"tasker/tfs/work"
 	"tasker/tfs/workitem"
 
-	"github.com/microsoft/azure-devops-go-api/azuredevops"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/workitemtracking"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v6"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/workitemtracking"
 	"github.com/spf13/viper"
 )
 
@@ -19,7 +19,7 @@ var (
 
 type API struct {
 	Client  *workitem.Client
-	conn    *azuredevops.Connection
+	Conn    *azuredevops.Connection
 	project string
 	team    string
 }
@@ -36,7 +36,7 @@ func NewAPI(ctx context.Context) (*API, error) {
 
 	return &API{
 		Client:  client,
-		conn:    conn,
+		Conn:    conn,
 		project: project,
 		team:    team,
 	}, nil
@@ -48,7 +48,7 @@ func (a *API) CreateTask(ctx context.Context, title, description string, estimat
 	var user string
 
 	if assign {
-		user, err = identity.Get(ctx, a.conn)
+		user, err = identity.Get(ctx, a.Conn)
 		if err != nil {
 			return nil, err
 		}
@@ -91,7 +91,7 @@ func (a *API) CreateTask(ctx context.Context, title, description string, estimat
 }
 
 func (a *API) findParent(ctx context.Context, namePattern string) (*workitemtracking.WorkItem, error) {
-	iterations, err := work.GetIterations(ctx, a.conn, a.project, a.team)
+	iterations, err := work.GetIterations(ctx, a.Conn, a.project, a.team)
 	if err != nil {
 		return nil, err
 	}

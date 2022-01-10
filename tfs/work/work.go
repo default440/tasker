@@ -3,8 +3,8 @@ package work
 import (
 	"context"
 
-	"github.com/microsoft/azure-devops-go-api/azuredevops"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/work"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v6"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/work"
 )
 
 func GetIterations(ctx context.Context, conn *azuredevops.Connection, project, team string) (*[]work.TeamSettingsIteration, error) {

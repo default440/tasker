@@ -6,9 +6,9 @@ import (
 	"strings"
 	"tasker/ptr"
 
-	"github.com/microsoft/azure-devops-go-api/azuredevops"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/webapi"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/workitemtracking"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v6"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/webapi"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/workitemtracking"
 	"github.com/spf13/viper"
 )
 
@@ -107,7 +107,7 @@ func (api *Client) FindRequirement(ctx context.Context, namePattern, iterationPa
 				WHERE [Work Item Type] = 'Requirement'
 					AND [System.IterationPath] = '` + iterationPath + `'
 					AND [Title] CONTAINS '` + namePattern + `'
-					AND [State] = 'Proposed'
+					AND [State] = 'Active'
 			`),
 		},
 		Project: &api.project,

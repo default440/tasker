@@ -14,7 +14,7 @@ import (
 
 	"github.com/eiannone/keyboard"
 	"github.com/google/uuid"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/workitemtracking"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/workitemtracking"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	goconfluence "github.com/virtomize/confluence-go-api"

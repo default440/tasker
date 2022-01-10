@@ -6,7 +6,7 @@ import (
 	"tasker/tfs"
 	"tasker/tfs/workitem"
 
-	"github.com/microsoft/azure-devops-go-api/azuredevops/workitemtracking"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/workitemtracking"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -72,12 +72,12 @@ func createTaskCommand(ctx context.Context, title, description string) error {
 
 	parentUserStoryNamePattern := viper.GetString("tfsCommonUserStoryNamePattern")
 
-	a, err := tfs.NewAPI(ctx)
+	api, err := tfs.NewAPI(ctx)
 	if err != nil {
 		return err
 	}
 
-	task, err := a.CreateTask(ctx, title, description, estimate, int(parentWorkItemID), nil, tags, parentUserStoryNamePattern, !unassignedTask)
+	task, err := api.CreateTask(ctx, title, description, estimate, int(parentWorkItemID), nil, tags, parentUserStoryNamePattern, !unassignedTask)
 	printCreateTaskResult(task, err, spinner)
 	openInBrowser(task)
 

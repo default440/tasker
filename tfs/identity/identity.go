@@ -5,8 +5,8 @@ import (
 	"errors"
 	"tasker/ptr"
 
-	"github.com/microsoft/azure-devops-go-api/azuredevops"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/identity"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v6"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/identity"
 	"github.com/spf13/viper"
 )
 

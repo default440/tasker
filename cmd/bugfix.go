@@ -10,7 +10,7 @@ import (
 	"tasker/tfs/workitem"
 	"text/template"
 
-	"github.com/microsoft/azure-devops-go-api/azuredevops/workitemtracking"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/workitemtracking"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

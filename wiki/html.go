@@ -35,6 +35,7 @@ type Task struct {
 	TfsTaskID   int
 	tfsColumn   *goquery.Selection
 	updated     bool
+	tr          *goquery.Selection
 }
 
 func (t *Task) Update(html string) {
@@ -63,7 +64,7 @@ func (t *Task) TableIndex() int {
 }
 
 func (t *Task) Table() *goquery.Selection {
-	return t.tfsColumn.Parent().Parent().Parent()
+	return t.tr.Parent().Parent()
 }
 
 func ParseTasks(body string) ([]*Task, error) {
@@ -83,8 +84,8 @@ func ParseTasks(body string) ([]*Task, error) {
 			return tasksRegexp.MatchString(s.Prev().Text())
 		}).
 		Find("tr").
-		Each(func(i int, s *goquery.Selection) {
-			s.Find("th").Each(func(colNum int, th *goquery.Selection) {
+		Each(func(i int, tr *goquery.Selection) {
+			tr.Find("th").Each(func(colNum int, th *goquery.Selection) {
 				switch strings.ToLower(th.Text()) {
 				case "задача":
 					columnsMapping[colNum] = titleColumn
@@ -97,12 +98,14 @@ func ParseTasks(body string) ([]*Task, error) {
 				}
 			})
 
-			cols := s.Find("td")
+			cols := tr.Find("td")
 			if len(cols.Nodes) < len(columnsMapping) {
 				return
 			}
 
-			task := &Task{}
+			task := &Task{
+				tr: tr,
+			}
 			cols.Each(func(colNum int, td *goquery.Selection) {
 				column, ok := columnsMapping[colNum]
 				if ok {
