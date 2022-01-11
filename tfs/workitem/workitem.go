@@ -57,9 +57,9 @@ func (api *Client) Update(ctx context.Context, taskID int, title, description st
 	return err
 }
 
-func (api *Client) Get(ctx context.Context, taskID int) (*workitemtracking.WorkItem, error) {
+func (api *Client) Get(ctx context.Context, workItemID int) (*workitemtracking.WorkItem, error) {
 	return api.client.GetWorkItem(ctx, workitemtracking.GetWorkItemArgs{
-		Id: ptr.FromInt(taskID),
+		Id: ptr.FromInt(workItemID),
 	})
 }
 
