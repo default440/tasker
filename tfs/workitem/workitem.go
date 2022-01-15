@@ -63,6 +63,16 @@ func (api *Client) Get(ctx context.Context, workItemID int) (*workitemtracking.W
 	})
 }
 
+func (api *Client) Delete(ctx context.Context, workItemID int) error {
+	_, err := api.client.DeleteWorkItem(ctx, workitemtracking.DeleteWorkItemArgs{
+		Project: &api.project,
+		Destroy: ptr.FromBool(true),
+		Id:      ptr.FromInt(workItemID),
+	})
+
+	return err
+}
+
 func (api *Client) FindUserStory(ctx context.Context, namePattern, iterationPath string) (*workitemtracking.WorkItem, error) {
 	if namePattern == "" {
 		return nil, errors.New("user story name pattern is empty")
@@ -213,7 +223,7 @@ func (api *Client) Assign(ctx context.Context, task *workitemtracking.WorkItem, 
 			{
 				Op:    &webapi.OperationValues.Add,
 				Path:  ptr.FromStr("/fields/System.State"),
-				Value: "InProgress",
+				Value: "Active",
 			},
 		},
 	})

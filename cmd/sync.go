@@ -54,10 +54,10 @@ func init() {
 	syncCmd.Flags().Uint32VarP(&syncCmdFlagfeatureWorkItemID, "feature", "f", 0, "ID of TFS feature work item (in case wiki page title not contains it)")
 	syncCmd.Flags().BoolVar(&syncCmdFlagskipExistsingTasks, "create-only", false, "Do not update existing tasks")
 	syncCmd.Flags().BoolVar(&syncCmdFlagSkipNewTasks, "update-only", false, "Do not create new tasks")
-	syncCmd.Flags().StringVar(&syncCmdFlagTitleCustomPrefix, "prefix", "", "Custom prefix for each task, ie 'Part 3. '")
+	syncCmd.Flags().StringVar(&syncCmdFlagTitleCustomPrefix, "prefix", "", "Custom prefix for each task, ie \"Part 3. \"")
 	syncCmd.Flags().BoolVar(&syncCmdFlagNoTitleAutoPrefix, "no-auto-prefix", false, "Do not prepend each task with index prefix")
 	syncCmd.Flags().StringSliceVarP(&tags, "tag", "t", []string{}, "Tags of the task. Can be separated by comma or specified multiple times.")
-	syncCmd.Flags().Uint32VarP(&syncCmdFlagPartNumber, "part", "p", 0, "Table number (tasks part), if tasks split into multiples tables (parts)")
+	syncCmd.Flags().Uint32VarP(&syncCmdFlagPartNumber, "part", "p", 0, "Table number (tasks part), if tasks splitted into multiple tables (parts)")
 }
 
 func syncCommand(ctx context.Context, wikiPageID int) error {
