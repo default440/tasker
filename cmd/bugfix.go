@@ -65,7 +65,7 @@ func createBugfixCommand(ctx context.Context, bugID int, description string) err
 		return err
 	}
 
-	bug, err := a.Client.Get(ctx, bugID)
+	bug, err := a.WiClient.Get(ctx, bugID)
 	if err != nil {
 		return err
 	}

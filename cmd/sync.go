@@ -204,7 +204,7 @@ func createTasks(ctx context.Context, featureID int, tasks []*wiki.Task) error {
 		return err
 	}
 
-	feature, err := a.Client.Get(ctx, featureID)
+	feature, err := a.WiClient.Get(ctx, featureID)
 	if err != nil {
 		return err
 	}
@@ -213,7 +213,7 @@ func createTasks(ctx context.Context, featureID int, tasks []*wiki.Task) error {
 		progressbar.UpdateTitle(fmt.Sprintf("Creating %s", cutString(t.Title, 20, true)))
 
 		if t.TfsTaskID > 0 {
-			err := a.Client.Update(ctx, t.TfsTaskID, t.Title, t.Description, t.Estimate)
+			err := a.WiClient.Update(ctx, t.TfsTaskID, t.Title, t.Description, t.Estimate)
 			if err == nil {
 				pterm.Success.Println(fmt.Sprintf("UPDATED %s", t.Title))
 			} else {

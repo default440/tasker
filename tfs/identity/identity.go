@@ -10,12 +10,17 @@ import (
 	"github.com/spf13/viper"
 )
 
-func Get(ctx context.Context, conn *azuredevops.Connection) (string, error) {
+type Identity struct {
+	Id          string
+	DisplayName string
+}
+
+func Get(ctx context.Context, conn *azuredevops.Connection) (*Identity, error) {
 	userFilter := viper.GetString("tfsUserFilter")
 
 	client, err := identity.NewClient(ctx, conn)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	identities, err := client.ReadIdentities(ctx, identity.ReadIdentitiesArgs{
@@ -24,18 +29,21 @@ func Get(ctx context.Context, conn *azuredevops.Connection) (string, error) {
 		QueryMembership: &identity.QueryMembershipValues.None,
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if identities == nil || len(*identities) == 0 {
-		return "", errors.New("user identity not found")
+		return nil, errors.New("user identity not found")
 	}
 
 	if len(*identities) > 1 {
-		return "", errors.New("user filter not unique")
+		return nil, errors.New("user filter not unique")
 	}
 
 	identity := (*identities)[0]
 
-	return *identity.ProviderDisplayName, nil
+	return &Identity{
+		Id:          identity.Id.String(),
+		DisplayName: *identity.ProviderDisplayName,
+	}, nil
 }

@@ -36,7 +36,7 @@ func getWorkItemCommand(ctx context.Context, workItemID int) error {
 		return err
 	}
 
-	workItem, err := a.Client.Get(ctx, workItemID)
+	workItem, err := a.WiClient.Get(ctx, workItemID)
 	if err != nil {
 		return err
 	}

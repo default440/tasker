@@ -35,5 +35,5 @@ func deleteWorkItemCommand(ctx context.Context, workItemID int) error {
 		return err
 	}
 
-	return a.Client.Delete(ctx, workItemID)
+	return a.WiClient.Delete(ctx, workItemID)
 }

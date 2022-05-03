@@ -10,6 +10,7 @@ import (
 func setNodesToNil(tasks []*Task) {
 	for i := 0; i < len(tasks); i++ {
 		tasks[i].tfsColumn = nil
+		tasks[i].tr = nil
 	}
 }
 

@@ -46,10 +46,7 @@ func (t *Task) Update(html string) {
 }
 
 func (t *Task) isEmpty() bool {
-	return t.Title == "" &&
-		t.Description == "" &&
-		t.Estimate == 0 &&
-		t.TfsTaskID == 0
+	return t.Estimate == 0 && t.TfsTaskID == 0
 }
 
 func (t *Task) TableIndex() int {
@@ -170,7 +167,8 @@ func UpdatePageContent(body string, tasks []*Task) (string, bool, error) {
 	}
 
 	tablesIndexes := tablesRegexp.FindAllStringIndex(body, -1)
-	if len(tablesIndexes) != len(tables) {
+	maxIndex := getMaxIndex(tables)
+	if maxIndex >= len(tablesIndexes) {
 		return "", false, errors.New("not all tasks tables found")
 	}
 
@@ -191,6 +189,16 @@ func UpdatePageContent(body string, tasks []*Task) (string, bool, error) {
 	}
 
 	return body, true, nil
+}
+
+func getMaxIndex(tables map[int]*goquery.Selection) int {
+	var maxIndex int
+	for index := range tables {
+		if index > maxIndex {
+			maxIndex = index
+		}
+	}
+	return maxIndex
 }
 
 func getUpdatedTasks(tasks []*Task) []*Task {

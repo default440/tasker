@@ -18,10 +18,10 @@ var (
 )
 
 type API struct {
-	Client  *workitem.Client
-	Conn    *azuredevops.Connection
-	project string
-	team    string
+	WiClient *workitem.Client
+	Conn     *azuredevops.Connection
+	project  string
+	team     string
 }
 
 func NewAPI(ctx context.Context) (*API, error) {
@@ -35,10 +35,10 @@ func NewAPI(ctx context.Context) (*API, error) {
 	}
 
 	return &API{
-		Client:  client,
-		Conn:    conn,
-		project: project,
-		team:    team,
+		WiClient: client,
+		Conn:     conn,
+		project:  project,
+		team:     team,
 	}, nil
 }
 
@@ -48,14 +48,15 @@ func (a *API) CreateTask(ctx context.Context, title, description string, estimat
 	var user string
 
 	if assign {
-		user, err = identity.Get(ctx, a.Conn)
+		userIdentity, err := identity.Get(ctx, a.Conn)
 		if err != nil {
 			return nil, err
 		}
+		user = userIdentity.DisplayName
 	}
 
 	if parentID > 0 {
-		parent, err = a.Client.Get(ctx, parentID)
+		parent, err = a.WiClient.Get(ctx, parentID)
 	} else {
 		parent, err = a.findParent(ctx, parentNamePattern)
 	}
@@ -75,13 +76,13 @@ func (a *API) CreateTask(ctx context.Context, title, description string, estimat
 		description = title
 	}
 
-	task, err := a.Client.Create(ctx, title, description, areaPath, iterationPath, estimate, relations, tags)
+	task, err := a.WiClient.Create(ctx, title, description, areaPath, iterationPath, estimate, relations, tags)
 	if err != nil {
 		return nil, err
 	}
 
 	if assign {
-		err = a.Client.Assign(ctx, task, user)
+		err = a.WiClient.Assign(ctx, task, user)
 		if err != nil {
 			return task, err
 		}
@@ -99,7 +100,7 @@ func (a *API) findParent(ctx context.Context, namePattern string) (*workitemtrac
 	for i := len(*iterations) - 1; i >= 0; i-- {
 		iteration := (*iterations)[i]
 		if *iteration.Attributes.TimeFrame == "current" || *iteration.Attributes.TimeFrame == "past" {
-			userStory, err := a.Client.FindRequirement(ctx, namePattern, *iteration.Path)
+			userStory, err := a.WiClient.FindRequirement(ctx, namePattern, *iteration.Path)
 			if err != nil {
 				return nil, err
 			}
@@ -122,5 +123,5 @@ func (a *API) CreateFeatureTask(ctx context.Context, title, description string, 
 		},
 	}
 
-	return a.Client.Create(ctx, title, description, areaPath, iterationPath, estimate, relations, tags)
+	return a.WiClient.Create(ctx, title, description, areaPath, iterationPath, estimate, relations, tags)
 }

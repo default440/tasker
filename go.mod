@@ -1,6 +1,6 @@
 module tasker
 
-go 1.17
+go 1.18
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.0
@@ -12,6 +12,7 @@ require (
 	github.com/spf13/viper v1.10.1
 	github.com/stretchr/testify v1.7.0
 	github.com/virtomize/confluence-go-api v1.3.0
+	golang.org/x/exp v0.0.0-20220414153411-bcd21879b8fd
 )
 
 require (
