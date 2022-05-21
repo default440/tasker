@@ -94,19 +94,19 @@ func Write(html, text string) error {
 		return err
 	}
 
-	data, err := syscall.UTF16FromString(text)
+	unicodeText, err := syscall.UTF16FromString(text)
 	if err != nil {
 		return err
 	}
 
-	err = writeClipboardData(cfUnicodetext, data)
+	err = writeClipboardData(cfUnicodetext, unicodeText)
 	if err != nil {
-		return err
+		return fmt.Errorf("error writing unicode text to clipboard: %w", err)
 	}
 
 	err = writeClipboardData(cfHTML, []byte(getHTMLData(html)))
 	if err != nil {
-		return err
+		return fmt.Errorf("error writing html to clipboard: %w", err)
 	}
 
 	closed, _, err := closeClipboard.Call()

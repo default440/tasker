@@ -62,17 +62,17 @@ func (c *Creator) Create(ctx context.Context, squash bool) (*git.GitPullRequest,
 
 	pr, err := c.Client.CreatePullRequest(ctx, *prArgs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("pr create error: %w", err)
 	}
 
 	err = copyToClipboard(pr)
 	if err != nil {
-		fmt.Printf("%v\n", err)
+		fmt.Printf("clipboard error: %v\n", err)
 	}
 
-	err = c.setAutoComplete(ctx, pr.PullRequestId, squash)
+	err = c.setAutoComplete(ctx, pr.PullRequestId, *commit.Comment, squash)
 	if err != nil {
-		return pr, err
+		return pr, fmt.Errorf("set autocomplete error: %w", err)
 	}
 
 	return pr, nil
@@ -101,7 +101,7 @@ func GetPullRequestUrl(pr *git.GitPullRequest) string {
 	return fmt.Sprintf("%s/%s/_git/%s/pullrequest/%d", tfsBaseAddress, *pr.Repository.Project.Name, *pr.Repository.Name, *pr.PullRequestId)
 }
 
-func (c *Creator) setAutoComplete(ctx context.Context, pullRequestId *int, squash bool) error {
+func (c *Creator) setAutoComplete(ctx context.Context, pullRequestId *int, message string, squash bool) error {
 	update := &git.GitPullRequest{
 		AutoCompleteSetBy: &webapi.IdentityRef{
 			Id: &c.user.Id,
@@ -111,6 +111,8 @@ func (c *Creator) setAutoComplete(ctx context.Context, pullRequestId *int, squas
 		update.CompletionOptions = &git.GitPullRequestCompletionOptions{
 			DeleteSourceBranch: ptr.FromBool(true),
 			MergeStrategy:      &git.GitPullRequestMergeStrategyValues.Squash,
+			MergeCommitMessage: &message,
+			SquashMerge:        ptr.FromBool(true),
 		}
 	}
 
@@ -176,6 +178,9 @@ func createPrArgs(project, repository, sourceBranch, targetBranch, message strin
 			TargetRefName: ptr.FromStr("refs/heads/" + targetBranch),
 			Title:         &message,
 			Description:   &message,
+			CompletionOptions: &git.GitPullRequestCompletionOptions{
+				MergeCommitMessage: &message,
+			},
 		},
 	}
 
