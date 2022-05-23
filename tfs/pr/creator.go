@@ -14,14 +14,17 @@ import (
 
 	"golang.org/x/exp/slices"
 
+	"github.com/erikgeiser/promptkit/confirmation"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/git"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/webapi"
 	"github.com/spf13/viper"
 )
 
 var (
-	workItemIDRegexp      = regexp.MustCompile(`\d{5,6}`)
+	workItemIDRegexp = regexp.MustCompile(`\d{5,6}`)
+
 	ErrLastCommitNotFound = errors.New("last commit not found")
+	ErrAborted            = errors.New("aborted")
 )
 
 type Creator struct {
@@ -58,7 +61,17 @@ func (c *Creator) Create(ctx context.Context, squash bool) (*git.GitPullRequest,
 
 	prArgs := createPrArgs(*c.Project, *c.RepositoryId, sourceBranch, targetBranch, *commit.Comment, getWorkItems(commit))
 
-	prettyprint.JSONObject(prArgs)
+	prettyprint.JSONObjectColor(prArgs)
+
+	input := confirmation.New("Continue?", confirmation.Yes)
+	confirmed, err := input.RunPrompt()
+	if err != nil {
+		return nil, err
+	}
+
+	if !confirmed {
+		return nil, ErrAborted
+	}
 
 	pr, err := c.Client.CreatePullRequest(ctx, *prArgs)
 	if err != nil {

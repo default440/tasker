@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"regexp"
 	"strconv"
 
 	"tasker/prettyprint"
@@ -23,12 +22,17 @@ var (
 	}
 
 	createPrCmd = &cobra.Command{
-		Use:   "create",
+		Use:   "create [Repository Name]",
 		Short: "Create PR",
 		Long:  "Create pull request assuming best defaults.",
-		Args:  cobra.NoArgs,
+		Args:  cobra.RangeArgs(0, 1),
 		Run: func(cmd *cobra.Command, args []string) {
-			err := createPrCommand(cmd.Context())
+			var repository string
+			if len(args) > 0 {
+				repository = args[0]
+			}
+
+			err := createPrCommand(cmd.Context(), repository)
 			cobra.CheckErr(err)
 		},
 	}
@@ -46,11 +50,8 @@ var (
 		},
 	}
 
-	workItemIDRegexp = regexp.MustCompile(`\-\d{5,}`)
-
-	createPrCmdFlagSquash     bool
-	createPrCmdFlagProject    string
-	createPrCmdFlagRepository string
+	createPrCmdFlagSquash  bool
+	createPrCmdFlagProject string
 )
 
 func init() {
@@ -60,7 +61,6 @@ func init() {
 
 	createPrCmd.Flags().BoolVarP(&createPrCmdFlagSquash, "squash", "s", true, "Squash PR")
 	createPrCmd.Flags().StringVarP(&createPrCmdFlagProject, "project", "p", "NSMS", "TFS project name")
-	createPrCmd.Flags().StringVarP(&createPrCmdFlagRepository, "repository", "r", "", "Repository name (by default from suggestion)")
 }
 
 func getPrCommand(ctx context.Context, id int) error {
@@ -86,12 +86,7 @@ func getPrCommand(ctx context.Context, id int) error {
 	return nil
 }
 
-func createPrCommand(ctx context.Context) error {
-	spinner, _ := pterm.DefaultSpinner.Start()
-	defer func() {
-		_ = spinner.Stop()
-	}()
-
+func createPrCommand(ctx context.Context, repository string) error {
 	tfsAPI, err := tfs.NewAPI(ctx)
 	if err != nil {
 		return err
@@ -102,11 +97,8 @@ func createPrCommand(ctx context.Context) error {
 		return err
 	}
 
-	var repository string
-	if createPrCmdFlagRepository != "" {
-		repository = createPrCmdFlagRepository
-	} else {
-		repository, err = client.FindRepository(ctx)
+	if repository == "" {
+		repository, err = client.RequestRepository(ctx)
 		if err != nil {
 			return err
 		}
@@ -122,9 +114,9 @@ func createPrCommand(ctx context.Context) error {
 	if pullrequest != nil {
 		url := pr.GetPullRequestUrl(pullrequest)
 		if err == nil {
-			spinner.Success(url)
+			pterm.Success.Println(url)
 		} else {
-			spinner.Warning(url)
+			pterm.Warning.Println(url)
 		}
 	}
 
