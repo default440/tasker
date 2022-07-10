@@ -8,7 +8,6 @@ import (
 
 	"golang.org/x/exp/slices"
 
-	"github.com/erikgeiser/promptkit/selection"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/git"
 )
@@ -59,7 +58,7 @@ func (c *Client) RequestRepository(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	rep, err := requestUserSelection(repNames)
+	rep, err := requestUserSelection("Repository:", repNames)
 	if err != nil {
 		return "", err
 	}
@@ -116,17 +115,4 @@ func getRepositoryNames(reps []git.GitRepository) []string {
 	sort.Strings(repNames)
 
 	return repNames
-}
-
-func requestUserSelection(choices []string) (string, error) {
-	sp := selection.New("Repository", selection.Choices(choices))
-	sp.PageSize = 5
-
-	choice, err := sp.RunPrompt()
-
-	if err != nil {
-		return "", err
-	}
-
-	return choice.String, nil
 }

@@ -50,7 +50,6 @@ var (
 		},
 	}
 
-	createPrCmdFlagSquash  bool
 	createPrCmdFlagProject string
 )
 
@@ -59,7 +58,6 @@ func init() {
 	prCmd.AddCommand(createPrCmd)
 	prCmd.AddCommand(getPrCmd)
 
-	createPrCmd.Flags().BoolVarP(&createPrCmdFlagSquash, "squash", "s", true, "Squash PR")
 	createPrCmd.Flags().StringVarP(&createPrCmdFlagProject, "project", "p", "NSMS", "TFS project name")
 }
 
@@ -109,10 +107,10 @@ func createPrCommand(ctx context.Context, repository string) error {
 		return err
 	}
 
-	pullrequest, err := creator.Create(ctx, createPrCmdFlagSquash)
+	pullrequest, err := creator.Create(ctx)
 
 	if pullrequest != nil {
-		url := pr.GetPullRequestUrl(pullrequest)
+		url := pr.GetPullRequestURL(pullrequest)
 		if err == nil {
 			pterm.Success.Println(url)
 		} else {
