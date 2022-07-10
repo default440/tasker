@@ -267,17 +267,23 @@ func addTitlePrefixes(table *Table, withPartNumber bool) {
 
 func requestConfirmation(tables []*Table) error {
 	var tasksTotalCount int
+	var totalEstimate int
 	for _, table := range tables {
 		if len(tables) > 1 {
 			pterm.DefaultSection.Printfln("Part %d", table.Number)
 		}
 
 		previewTasks(table.Tasks)
+
 		tasksTotalCount += len(table.Tasks)
+		for _, t := range table.Tasks {
+			totalEstimate += int(t.Estimate)
+		}
 	}
 
 	if len(tables) > 1 {
-		pterm.DefaultSection.Printfln("Total tasks: %d", tasksTotalCount)
+		println("")
+		pterm.DefaultBox.WithTitle("Total").Printfln("Tasks: %d\nEstimate: %v", tasksTotalCount, totalEstimate)
 	}
 
 	pterm.DefaultHeader.
@@ -333,9 +339,11 @@ func groupByTable(tasks []*wiki.Task) ([]*Table, error) {
 func previewTasks(tasks []*wiki.Task) {
 	titleWidth, descriptionWidth := getColumnsWidth()
 
+	var totalEstimate float32
 	var tableData [][]string
 	tableData = append(tableData, []string{"#", "Title", "Description", "Estimate", "TFS"})
 	for i, task := range tasks {
+		totalEstimate += task.Estimate
 
 		tfsTaskID := ""
 		switch {
@@ -354,6 +362,8 @@ func previewTasks(tasks []*wiki.Task) {
 			tfsTaskID,
 		})
 	}
+
+	tableData = append(tableData, []string{"", "∑", "", fmt.Sprintf("%v", totalEstimate), ""})
 
 	_ = pterm.DefaultTable.
 		WithHasHeader().
