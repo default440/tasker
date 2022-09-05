@@ -1,4 +1,4 @@
-tfsBaseAddress: http://msk-tfs-t.infotecs-nt:8080/tfs/SrvNccCollection
+tfsBaseAddress: https://msk-tfs-t.infotecs-nt:8080/tfs/SrvNccCollection
 tfsDiscipline: Development
 tfsProject: NSMS
 tfsTeam: SMP

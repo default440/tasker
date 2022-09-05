@@ -23,6 +23,7 @@ var (
 	workItemIDRegexp = regexp.MustCompile(`\d{5,6}`)
 
 	ErrLastCommitNotFound = errors.New("last commit not found")
+	ErrCommitsNotFound    = errors.New("no one commit was found")
 	ErrAborted            = errors.New("aborted")
 )
 
@@ -47,23 +48,36 @@ func NewCreator(ctx context.Context, client *Client, repository, project string)
 	}, nil
 }
 
-func (c *Creator) Create(ctx context.Context) (*git.GitPullRequest, error) {
-	commit, err := c.findLastCommit(ctx)
+func (c *Creator) Create(ctx context.Context, message string) (*git.GitPullRequest, error) {
+	userCommits, err := c.getUserCommits(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	sourceBranch, targetBranch, err := c.findBranches(ctx, *commit.CommitId)
+	lastCommit, err := getLastCommit(userCommits)
 	if err != nil {
 		return nil, err
 	}
 
-	message, err := requestUserTextInput("Merge commit message:", *commit.Comment)
+	sourceBranch, targetBranch, err := c.findBranches(ctx, *lastCommit.CommitId)
 	if err != nil {
 		return nil, err
 	}
 
-	workItems := getWorkItems(commit)
+	if message == "" {
+		if initialPrBranchCommit, found := getInitialPrBranchCommit(userCommits, targetBranch); found {
+			message = *initialPrBranchCommit.Comment
+		} else {
+			message = *lastCommit.Comment
+		}
+	}
+	message, err = requestUserTextInput("Merge commit message:", message)
+	if err != nil {
+		return nil, err
+	}
+
+	workItems := getWorkItems(lastCommit)
+	workItems = append(workItems, parseWorkItemIDs([]string{*sourceBranch.Name, message})...)
 	workItems, err = confirmWorkItems("Work items:", workItems)
 	if err != nil {
 		return nil, err
@@ -72,13 +86,11 @@ func (c *Creator) Create(ctx context.Context) (*git.GitPullRequest, error) {
 	prArgs := createPrArgs(
 		*c.Project,
 		*c.RepositoryID,
-		sourceBranch,
-		targetBranch,
+		*sourceBranch.Name,
+		*targetBranch.Name,
 		message,
 		workItems,
 	)
-
-	// prettyprint.JSONObjectColor(prArgs)
 
 	squash, err := confirmation.New("Squash pr?", confirmation.Yes).RunPrompt()
 	if err != nil {
@@ -125,6 +137,8 @@ func getRepositoryShortName(name string) string {
 	switch name {
 	case "security_management_platform":
 		return "smp"
+	case "angular_ui_components":
+		return "ang"
 	default:
 		return name
 	}
@@ -145,16 +159,12 @@ func (c *Creator) setAutoComplete(ctx context.Context, pullRequestID *int, messa
 		},
 	}
 	if squash {
-		update.CompletionOptions = &git.GitPullRequestCompletionOptions{
-			DeleteSourceBranch: ptr.FromBool(true),
-			MergeStrategy:      &git.GitPullRequestMergeStrategyValues.Squash,
-			SquashMerge:        ptr.FromBool(true),
-		}
+		update.CompletionOptions.DeleteSourceBranch = ptr.FromBool(true)
+		update.CompletionOptions.MergeStrategy = &git.GitPullRequestMergeStrategyValues.Squash
+		update.CompletionOptions.SquashMerge = ptr.FromBool(true)
 	} else {
-		update.CompletionOptions = &git.GitPullRequestCompletionOptions{
-			DeleteSourceBranch: ptr.FromBool(false),
-			MergeStrategy:      &git.GitPullRequestMergeStrategyValues.NoFastForward,
-		}
+		update.CompletionOptions.DeleteSourceBranch = ptr.FromBool(false)
+		update.CompletionOptions.MergeStrategy = &git.GitPullRequestMergeStrategyValues.NoFastForward
 	}
 
 	_, err := c.Client.UpdatePullRequest(ctx, git.UpdatePullRequestArgs{
@@ -167,10 +177,10 @@ func (c *Creator) setAutoComplete(ctx context.Context, pullRequestID *int, messa
 	return err
 }
 
-func (c *Creator) findLastCommit(ctx context.Context) (*git.GitCommitRef, error) {
+func (c *Creator) getUserCommits(ctx context.Context) ([]git.GitCommitRef, error) {
 	client := c.Client
 
-	top := 10
+	top := 30
 	result, err := client.GetCommits(ctx, git.GetCommitsArgs{
 		RepositoryId: c.RepositoryID,
 		Project:      c.Project,
@@ -194,12 +204,30 @@ func (c *Creator) findLastCommit(ctx context.Context) (*git.GitCommitRef, error)
 	})
 
 	if len(commits) == 0 {
+		return nil, ErrCommitsNotFound
+	}
+
+	return commits, nil
+}
+
+func getLastCommit(commits []git.GitCommitRef) (*git.GitCommitRef, error) {
+	if len(commits) == 0 {
 		return nil, ErrLastCommitNotFound
 	}
 
-	commit := commits[0]
+	return &(commits[0]), nil
+}
 
-	return &commit, nil
+func getInitialPrBranchCommit(commits []git.GitCommitRef, targetBranch *git.GitBranchStats) (*git.GitCommitRef, bool) {
+	if len(commits) == 0 {
+		return nil, false
+	}
+
+	if len(commits) < *targetBranch.BehindCount {
+		return nil, false
+	}
+
+	return &commits[(*targetBranch.BehindCount)-1], true
 }
 
 func getWorkItems(commit *git.GitCommitRef) []string {
@@ -223,10 +251,6 @@ func createPrArgs(project, repository, sourceBranch, targetBranch, message strin
 				MergeCommitMessage: &message,
 			},
 		},
-	}
-
-	for _, workItemID := range parseWorkItemIDs([]string{sourceBranch, message}) {
-		appendWorkItem(pr, workItemID)
 	}
 
 	for _, workItemID := range workItems {
@@ -271,7 +295,7 @@ func appendWorkItem(pr *git.CreatePullRequestArgs, workItemID string) {
 	pr.GitPullRequestToCreate.WorkItemRefs = &refs
 }
 
-func (c *Creator) findBranches(ctx context.Context, commitID string) (source, target string, err error) {
+func (c *Creator) findBranches(ctx context.Context, commitID string) (source, target *git.GitBranchStats, err error) {
 	result, err := c.Client.GetBranches(ctx, git.GetBranchesArgs{
 		RepositoryId: c.RepositoryID,
 		Project:      c.Project,
@@ -283,45 +307,48 @@ func (c *Creator) findBranches(ctx context.Context, commitID string) (source, ta
 	})
 
 	if err != nil {
-		return "", "", nil
+		return nil, nil, nil
 	}
 
 	branches := *result
 	if len(branches) < 2 {
-		return "", "", errors.New("unable to detect source and target branches")
+		return nil, nil, errors.New("unable to detect source and target branches")
 	}
 
 	slices.SortFunc(branches, func(a, b git.GitBranchStats) bool {
 		return *a.BehindCount < *b.BehindCount
 	})
 
-	branchNames := project(branches, func(b git.GitBranchStats) string {
-		return *b.Name
+	sourceCandidates := filter(branches, func(branch git.GitBranchStats) bool {
+		return *branch.Commit.Committer.Name == c.user.DisplayName
 	})
 
-	sourceCandidates := filter(branchNames, func(branch string) bool {
-		return strings.HasPrefix(branch, "pr/")
-	})
 	if len(sourceCandidates) < 1 {
-		return "", "", errors.New("unable to detect source branch")
-	}
-	sourceBranch, err := requestUserSelection("Source branch:", sourceCandidates)
-	if err != nil {
-		return "", "", err
+		return nil, nil, errors.New("unable to detect source branch")
 	}
 
-	targetCandidates := filter(branchNames, func(branch string) bool {
-		return !strings.HasPrefix(branch, "pr/")
+	branchNameSelector := func(branch git.GitBranchStats) string {
+		return *branch.Name
+	}
+
+	sourceBranch, err := requestUserSelection("Source branch:", sourceCandidates, branchNameSelector)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	targetCandidates := filter(branches, func(branch git.GitBranchStats) bool {
+		return !strings.HasPrefix(*branch.Name, "pr/")
 	})
 	if len(targetCandidates) < 1 {
-		return "", "", errors.New("unable to detect target branch")
-	}
-	targetBranch, err := requestUserSelection("Target branch:", targetCandidates)
-	if err != nil {
-		return "", "", err
+		return nil, nil, errors.New("unable to detect target branch")
 	}
 
-	return sourceBranch, targetBranch, nil
+	targetBranch, err := requestUserSelection("Target branch:", targetCandidates, branchNameSelector)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &sourceBranch, &targetBranch, nil
 }
 
 func filter[T any](items []T, fn func(item T) bool) []T {

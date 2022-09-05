@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"sync"
 	"tasker/ptr"
 
 	"golang.org/x/exp/slices"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/git"
@@ -18,6 +20,7 @@ var (
 	priorityReps = []string{
 		"security_management_platform",
 		"silso",
+		"smp_contracts",
 	}
 )
 
@@ -58,7 +61,7 @@ func (c *Client) RequestRepository(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	rep, err := requestUserSelection("Repository:", repNames)
+	rep, err := requestUserSelectionString("Repository:", repNames)
 	if err != nil {
 		return "", err
 	}
@@ -71,19 +74,32 @@ func (c *Client) RequestRepository(ctx context.Context) (string, error) {
 
 func prioritizeReps(ctx context.Context, c *Client, reps []string) ([]string, error) {
 	var suggested []string
+	wg, ctx := errgroup.WithContext(ctx)
+	var m sync.Mutex
 	for _, rep := range reps {
-		suggestions, err := c.GetSuggestions(ctx, git.GetSuggestionsArgs{
-			RepositoryId: ptr.FromStr(rep),
-			Project:      &c.project,
-		})
-		if err != nil {
-			return nil, err
-		}
+		repository := rep
+		wg.Go(func() error {
+			suggestions, err := c.GetSuggestions(ctx, git.GetSuggestionsArgs{
+				RepositoryId: ptr.FromStr(repository),
+				Project:      &c.project,
+			})
 
-		if len(*suggestions) > 0 {
-			suggested = append(suggested, rep)
-			break
-		}
+			if err != nil {
+				return err
+			}
+
+			if len(*suggestions) > 0 {
+				m.Lock()
+				suggested = append(suggested, repository)
+				m.Unlock()
+			}
+
+			return nil
+		})
+	}
+	err := wg.Wait()
+	if err != nil {
+		return nil, err
 	}
 
 	sort.Strings(suggested)

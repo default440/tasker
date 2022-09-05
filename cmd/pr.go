@@ -51,6 +51,7 @@ var (
 	}
 
 	createPrCmdFlagProject string
+	createPrCmdFlagMessage string
 )
 
 func init() {
@@ -59,6 +60,7 @@ func init() {
 	prCmd.AddCommand(getPrCmd)
 
 	createPrCmd.Flags().StringVarP(&createPrCmdFlagProject, "project", "p", "NSMS", "TFS project name")
+	createPrCmd.Flags().StringVarP(&createPrCmdFlagMessage, "message", "m", "", "Megre commit message")
 }
 
 func getPrCommand(ctx context.Context, id int) error {
@@ -107,7 +109,7 @@ func createPrCommand(ctx context.Context, repository string) error {
 		return err
 	}
 
-	pullrequest, err := creator.Create(ctx)
+	pullrequest, err := creator.Create(ctx, createPrCmdFlagMessage)
 
 	if pullrequest != nil {
 		url := pr.GetPullRequestURL(pullrequest)

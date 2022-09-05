@@ -9,7 +9,7 @@ import (
 	"github.com/erikgeiser/promptkit/textinput"
 )
 
-func requestUserSelection(prompt string, choices []string) (string, error) {
+func requestUserSelectionString(prompt string, choices []string) (string, error) {
 	sp := selection.New(prompt, selection.Choices(choices))
 	sp.PageSize = 5
 	choice, err := sp.RunPrompt()
@@ -19,6 +19,28 @@ func requestUserSelection(prompt string, choices []string) (string, error) {
 	}
 
 	return choice.String, nil
+}
+
+func requestUserSelection[T any](prompt string, values []T, nameSelector func(value T) string) (T, error) {
+	choices := make([]*selection.Choice, 0, len(values))
+	for i := 0; i < len(values); i++ {
+		choices = append(choices, &selection.Choice{
+			Index:  i,
+			String: nameSelector(values[i]),
+			Value:  values[i],
+		})
+	}
+
+	sp := selection.New(prompt, choices)
+	sp.PageSize = 5
+	choice, err := sp.RunPrompt()
+
+	if err != nil {
+		var result T
+		return result, err
+	}
+
+	return choice.Value.(T), nil
 }
 
 func requestUserTextInput(prompt string, defaultValue string) (string, error) {
