@@ -28,7 +28,7 @@ func init() {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	viper.SetDefault("tfsBaseAddress", "https://msk-tfs-t.infotecs-nt:8080/tfs/SrvNccCollection")
+	viper.SetDefault("tfsBaseAddress", "https://msk-tfs-t.infotecs-nt/tfs/SrvNccCollection")
 	viper.SetDefault("tfsProject", "NSMS")
 	viper.SetDefault("tfsTeam", "SMP")
 	viper.SetDefault("tfsDiscipline", "Development")

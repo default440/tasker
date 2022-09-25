@@ -61,7 +61,7 @@ func (c *Client) RequestRepository(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	rep, err := requestUserSelectionString("Repository:", repNames)
+	rep, err := ui.RequestUserSelectionString("Repository", repNames)
 	if err != nil {
 		return "", err
 	}

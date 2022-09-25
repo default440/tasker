@@ -13,7 +13,6 @@ import (
 
 	"golang.org/x/exp/slices"
 
-	"github.com/erikgeiser/promptkit/confirmation"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/git"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/webapi"
 	"github.com/spf13/viper"
@@ -71,14 +70,14 @@ func (c *Creator) Create(ctx context.Context, message string) (*git.GitPullReque
 			message = *lastCommit.Comment
 		}
 	}
-	message, err = requestUserTextInput("Merge commit message:", message)
+	message, err = ui.RequestUserTextInput("Merge commit message", message)
 	if err != nil {
 		return nil, err
 	}
 
 	workItems := getWorkItems(lastCommit)
 	workItems = append(workItems, parseWorkItemIDs([]string{*sourceBranch.Name, message})...)
-	workItems, err = confirmWorkItems("Work items:", workItems)
+	workItems, err = ui.ConfirmWorkItems("Work items", workItems)
 	if err != nil {
 		return nil, err
 	}
@@ -92,12 +91,12 @@ func (c *Creator) Create(ctx context.Context, message string) (*git.GitPullReque
 		workItems,
 	)
 
-	squash, err := confirmation.New("Squash pr?", confirmation.Yes).RunPrompt()
+	squash, err := ui.Confirmation("Squash pr?", true)
 	if err != nil {
 		return nil, err
 	}
 
-	confirmed, err := confirmation.New("Continue?", confirmation.Yes).RunPrompt()
+	confirmed, err := ui.Confirmation("Continue?", true)
 	if err != nil {
 		return nil, err
 	}
@@ -227,6 +226,10 @@ func getInitialPrBranchCommit(commits []git.GitCommitRef, targetBranch *git.GitB
 		return nil, false
 	}
 
+	if *targetBranch.BehindCount == 0 {
+		return &commits[0], true
+	}
+
 	return &commits[(*targetBranch.BehindCount)-1], true
 }
 
@@ -331,7 +334,7 @@ func (c *Creator) findBranches(ctx context.Context, commitID string) (source, ta
 		return *branch.Name
 	}
 
-	sourceBranch, err := requestUserSelection("Source branch:", sourceCandidates, branchNameSelector)
+	sourceBranch, err := ui.RequestUserSelectionBranch("Source branch", sourceCandidates, branchNameSelector)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -343,7 +346,7 @@ func (c *Creator) findBranches(ctx context.Context, commitID string) (source, ta
 		return nil, nil, errors.New("unable to detect target branch")
 	}
 
-	targetBranch, err := requestUserSelection("Target branch:", targetCandidates, branchNameSelector)
+	targetBranch, err := ui.RequestUserSelectionBranch("Target branch", targetCandidates, branchNameSelector)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -22,17 +22,17 @@ var (
 	}
 
 	createPrCmd = &cobra.Command{
-		Use:   "create [Repository Name]",
+		Use:   "create [Merge Message]",
 		Short: "Create PR",
 		Long:  "Create pull request assuming best defaults.",
 		Args:  cobra.RangeArgs(0, 1),
 		Run: func(cmd *cobra.Command, args []string) {
-			var repository string
+			var message string
 			if len(args) > 0 {
-				repository = args[0]
+				message = args[0]
 			}
 
-			err := createPrCommand(cmd.Context(), repository)
+			err := createPrCommand(cmd.Context(), message)
 			cobra.CheckErr(err)
 		},
 	}
@@ -50,8 +50,9 @@ var (
 		},
 	}
 
-	createPrCmdFlagProject string
-	createPrCmdFlagMessage string
+	createPrCmdFlagProject    string
+	createPrCmdFlagMessage    string
+	createPrCmdFlagRepository string
 )
 
 func init() {
@@ -61,6 +62,7 @@ func init() {
 
 	createPrCmd.Flags().StringVarP(&createPrCmdFlagProject, "project", "p", "NSMS", "TFS project name")
 	createPrCmd.Flags().StringVarP(&createPrCmdFlagMessage, "message", "m", "", "Megre commit message")
+	createPrCmd.Flags().StringVarP(&createPrCmdFlagRepository, "repository", "r", "", "TFS repository name")
 }
 
 func getPrCommand(ctx context.Context, id int) error {
@@ -86,7 +88,7 @@ func getPrCommand(ctx context.Context, id int) error {
 	return nil
 }
 
-func createPrCommand(ctx context.Context, repository string) error {
+func createPrCommand(ctx context.Context, message string) error {
 	tfsAPI, err := tfs.NewAPI(ctx)
 	if err != nil {
 		return err
@@ -97,6 +99,7 @@ func createPrCommand(ctx context.Context, repository string) error {
 		return err
 	}
 
+	repository := createPrCmdFlagRepository
 	if repository == "" {
 		repository, err = client.RequestRepository(ctx)
 		if err != nil {
@@ -109,7 +112,11 @@ func createPrCommand(ctx context.Context, repository string) error {
 		return err
 	}
 
-	pullrequest, err := creator.Create(ctx, createPrCmdFlagMessage)
+	if message == "" {
+		message = createPrCmdFlagMessage
+	}
+
+	pullrequest, err := creator.Create(ctx, message)
 
 	if pullrequest != nil {
 		url := pr.GetPullRequestURL(pullrequest)
