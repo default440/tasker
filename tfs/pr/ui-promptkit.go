@@ -13,6 +13,15 @@ import (
 
 type promptkitUI struct{}
 
+type promptkitUIChoice[T any] struct {
+	StringValue string
+	Value       T
+}
+
+func (c *promptkitUIChoice[T]) String() string {
+	return c.StringValue
+}
+
 func (ui *promptkitUI) RequestUserSelectionBranch(prompt string, values []git.GitBranchStats, nameSelector func(value git.GitBranchStats) string) (git.GitBranchStats, error) {
 	return promptkitRequestUserSelection(prompt, values, nameSelector)
 }
@@ -22,12 +31,11 @@ func (ui *promptkitUI) RequestUserSelectionString(prompt string, choices []strin
 }
 
 func promptkitRequestUserSelection[T any](prompt string, values []T, nameSelector func(value T) string) (T, error) {
-	choices := make([]*selection.Choice, 0, len(values))
+	choices := make([]*promptkitUIChoice[T], 0, len(values))
 	for i := 0; i < len(values); i++ {
-		choices = append(choices, &selection.Choice{
-			Index:  i,
-			String: nameSelector(values[i]),
-			Value:  values[i],
+		choices = append(choices, &promptkitUIChoice[T]{
+			StringValue: nameSelector(values[i]),
+			Value:       values[i],
 		})
 	}
 
@@ -40,7 +48,7 @@ func promptkitRequestUserSelection[T any](prompt string, values []T, nameSelecto
 		return result, err
 	}
 
-	return choice.Value.(T), nil
+	return choice.Value, nil
 }
 
 func (ui *promptkitUI) RequestUserTextInput(prompt string, defaultValue string) (string, error) {

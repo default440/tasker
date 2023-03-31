@@ -85,7 +85,7 @@ func prioritizeReps(ctx context.Context, c *Client, reps []string) ([]string, er
 			})
 
 			if err != nil {
-				return err
+				return nil
 			}
 
 			if len(*suggestions) > 0 {

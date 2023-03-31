@@ -170,7 +170,7 @@ func updateWikiPage(api *goconfluence.API, content *goconfluence.Content, tasks 
 		ID:    content.ID,
 		Type:  content.Type,
 		Title: content.Title,
-		Space: goconfluence.Space{
+		Space: &goconfluence.Space{
 			Key: content.Space.Key,
 		},
 		Body: goconfluence.Body{
@@ -220,7 +220,7 @@ func createTasks(ctx context.Context, featureID int, tasks []*wiki.Task) error {
 				pterm.Warning.Println(fmt.Sprintf("NOT UPDATED %s: %s", t.Title, err.Error()))
 			}
 		} else {
-			tfsTask, err := a.CreateFeatureTask(ctx, t.Title, t.Description, t.Estimate, feature, syncCmdFlagTags)
+			tfsTask, err := a.CreateChildTask(ctx, t.Title, t.Description, t.Estimate, feature, syncCmdFlagTags)
 			if err == nil {
 				pterm.Success.Println(fmt.Sprintf("CREATED %s", t.Title))
 				t.Update(createTfsTaskMacros(tfsTask))
