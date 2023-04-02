@@ -10,6 +10,7 @@ import (
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/webapi"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/workitemtracking"
 	"github.com/spf13/viper"
+	"golang.org/x/exp/slices"
 )
 
 type Client struct {
@@ -28,6 +29,7 @@ func NewClient(ctx context.Context, conn *azuredevops.Connection, team, project 
 	if err != nil {
 		return nil, err
 	}
+
 	return &Client{
 		client:  client,
 		project: project,
@@ -60,6 +62,13 @@ func (api *Client) Update(ctx context.Context, taskID int, title, description st
 func (api *Client) Get(ctx context.Context, workItemID int) (*workitemtracking.WorkItem, error) {
 	return api.client.GetWorkItem(ctx, workitemtracking.GetWorkItemArgs{
 		Id: ptr.FromInt(workItemID),
+	})
+}
+
+func (api *Client) GetExpanded(ctx context.Context, workItemID int) (*workitemtracking.WorkItem, error) {
+	return api.client.GetWorkItem(ctx, workitemtracking.GetWorkItemArgs{
+		Id:     ptr.FromInt(workItemID),
+		Expand: &workitemtracking.WorkItemExpandValues.All,
 	})
 }
 
@@ -205,6 +214,72 @@ func (api *Client) Create(ctx context.Context, title, description, areaPath, ite
 	return task, nil
 }
 
+func (api *Client) Copy(ctx context.Context, sourceWorkItem *workitemtracking.WorkItem, areaPath, iterationPath string, relations []*Relation, tags []string) (*workitemtracking.WorkItem, error) {
+	tags = append(tags, "tasker")
+	fields := []webapi.JsonPatchOperation{
+		{
+			Op:    &webapi.OperationValues.Add,
+			Path:  ptr.FromStr("/fields/System.IterationPath"),
+			Value: iterationPath,
+		},
+		{
+			Op:    &webapi.OperationValues.Add,
+			Path:  ptr.FromStr("/fields/System.AreaPath"),
+			Value: areaPath,
+		},
+		{
+			Op:    &webapi.OperationValues.Add,
+			Path:  ptr.FromStr("/fields/System.Tags"),
+			Value: strings.Join(tags, "; "),
+		},
+	}
+
+	for key, fieldValue := range *sourceWorkItem.Fields {
+		if strings.Contains(key, "BoardColumn") {
+			continue
+		}
+
+		if value, ok := fieldValue.(string); ok {
+			path := "/fields/" + key
+
+			if slices.ContainsFunc(fields, func(f webapi.JsonPatchOperation) bool {
+				return *f.Path == path
+			}) {
+				continue
+			}
+
+			fields = append(fields, webapi.JsonPatchOperation{
+				Op:    &webapi.OperationValues.Add,
+				Path:  &path,
+				Value: value,
+			})
+		}
+	}
+
+	for _, relation := range relations {
+		fields = append(fields, webapi.JsonPatchOperation{
+			Op:   &webapi.OperationValues.Add,
+			Path: ptr.FromStr("/relations/-"),
+			Value: workitemtracking.WorkItemRelation{
+				Rel: ptr.FromStr(relation.Type),
+				Url: &relation.URL,
+			},
+		})
+	}
+
+	workItemType := GetType(sourceWorkItem)
+	task, err := api.client.CreateWorkItem(ctx, workitemtracking.CreateWorkItemArgs{
+		Type:     &workItemType,
+		Project:  &api.project,
+		Document: &fields,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return task, nil
+}
+
 func (api *Client) Assign(ctx context.Context, task *workitemtracking.WorkItem, user string) error {
 	_, err := api.client.UpdateWorkItem(ctx, workitemtracking.UpdateWorkItemArgs{
 		Id:      task.Id,
@@ -279,4 +354,30 @@ func GetAreaPath(w *workitemtracking.WorkItem) string {
 		}
 	}
 	return ""
+}
+
+func GetType(w *workitemtracking.WorkItem) string {
+	workItemType, ok := (*w.Fields)["System.WorkItemType"]
+	if ok {
+		workItemTypeStr, ok := workItemType.(string)
+		if ok {
+			return workItemTypeStr
+		}
+	}
+	return ""
+}
+
+func GetTags(w *workitemtracking.WorkItem) []string {
+	tagsValue, ok := (*w.Fields)["System.Tags"]
+	if ok {
+		tagsStr, ok := tagsValue.(string)
+		if ok {
+			tags := strings.Split(tagsStr, ";")
+			for i := 0; i < len(tags); i++ {
+				tags[i] = strings.TrimSpace(tags[i])
+			}
+			return tags
+		}
+	}
+	return nil
 }

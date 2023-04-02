@@ -49,7 +49,7 @@ var bugfixCmd = &cobra.Command{
 }
 
 func init() {
-	createCmd.AddCommand(bugfixCmd)
+	createTaskCmd.AddCommand(bugfixCmd)
 }
 
 func createBugfixCommand(ctx context.Context, bugID int, description string) error {

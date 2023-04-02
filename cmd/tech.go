@@ -152,8 +152,9 @@ func createTechDebtTasks(ctx context.Context, pages []*techDebtPage, tfsApi *tfs
 
 	for _, page := range pages {
 		progressbar.UpdateTitle(fmt.Sprintf("Creating %s", cutString(page.Title, 20, true)))
-		tfsTask, err := tfsApi.CreateChildTask(ctx, page.Title, page.Description, 0, requirement, []string{"Tech", "TechBacklog", "Prime", "SMP", "Core"})
-		// tfsTask, err := &workitemtracking.WorkItem{Id: ptr.FromInt(93043)}, err
+		tags := []string{"Tech", "TechBacklog", "Prime", "SMP", "Core"}
+		tags = append(tags, page.Labels...)
+		tfsTask, err := tfsApi.CreateChildTask(ctx, page.Title, page.Description, 0, requirement, tags)
 
 		if err != nil {
 			pterm.Error.Println(fmt.Sprintf("TFS Task NOT CREATED %s: %s", page.Title, err.Error()))
@@ -199,10 +200,19 @@ func parseTechDebtPages(ctx context.Context, pageIDs []string, api *goconfluence
 				return err
 			}
 
+			labels, err := api.GetLabels(id)
+			if err != nil {
+				return err
+			}
+
 			techDebt, err := wiki.ParseTechDebt(content)
 			if err != nil {
 				return err
 			}
+
+			techDebt.Labels = lo.Map(labels.Labels, func(label goconfluence.Label, i int) string {
+				return label.Label
+			})
 
 			m.Lock()
 			pages = append(pages, &techDebtPage{

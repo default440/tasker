@@ -32,6 +32,7 @@ type TechDebt struct {
 	Description string
 	Body        string
 	IsEmptyPage bool
+	Labels      []string
 	TfsTasks    []TfsTask
 }
 
@@ -48,9 +49,7 @@ func (td *TechDebt) AddTfsTask(id int) {
 		<ac:parameter ac:name="status">true</ac:parameter>
 	</ac:structured-macro>
 </p>
-<p>
-	<br />
-</p>`
+`
 
 	td.Body = html + td.Body
 	td.TfsTasks = append(td.TfsTasks, TfsTask{

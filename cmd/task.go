@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"os"
 	"tasker/browser"
 	"tasker/tfs"
 	"tasker/tfs/workitem"
@@ -13,7 +14,7 @@ import (
 )
 
 var (
-	createCmd = &cobra.Command{
+	createTaskCmd = &cobra.Command{
 		Use:   "create <Title> [Description]",
 		Short: "Create new task",
 		Long:  `Create new task in current sprint`,
@@ -43,25 +44,25 @@ var (
 )
 
 func init() {
-	rootCmd.AddCommand(createCmd)
+	rootCmd.AddCommand(createTaskCmd)
 
-	createCmd.PersistentFlags().String("project", "", "TFS Project name (NSMS, NVC, etc)")
-	createCmd.PersistentFlags().String("team", "", "The team")
-	createCmd.PersistentFlags().String("discipline", "", "The discipline to which the task belongs")
-	createCmd.PersistentFlags().String("user", "", "The User to assign")
+	createTaskCmd.PersistentFlags().String("project", "", "TFS Project name (NSMS, NVC, etc)")
+	createTaskCmd.PersistentFlags().String("team", "", "The team")
+	createTaskCmd.PersistentFlags().String("discipline", "", "The discipline to which the task belongs")
+	createTaskCmd.PersistentFlags().String("user", "", "The User to assign")
 
-	createCmd.PersistentFlags().Float32VarP(&estimate, "estimate", "e", 0, "The original estimate of work required to complete the task (in person hours)")
-	createCmd.PersistentFlags().Uint32VarP(&parentWorkItemID, "parent", "p", 0, "Id of parent User Story (if not specified looks up by according name pattern)")
-	createCmd.PersistentFlags().BoolVarP(&openTaskInBrowser, "open", "o", false, "Open created task in browser?")
-	createCmd.PersistentFlags().StringSliceVarP(&tags, "tag", "t", []string{}, "Tags of the task. Can be separated by comma or specified multiple times.")
-	createCmd.PersistentFlags().BoolVarP(&unassignedTask, "unassigned", "u", false, "Do not assign task")
+	createTaskCmd.PersistentFlags().Float32VarP(&estimate, "estimate", "e", 0, "The original estimate of work required to complete the task (in person hours)")
+	createTaskCmd.PersistentFlags().Uint32VarP(&parentWorkItemID, "parent", "p", 0, "Id of parent User Story (if not specified looks up by according name pattern)")
+	createTaskCmd.PersistentFlags().BoolVarP(&openTaskInBrowser, "open", "o", false, "Open created task in browser?")
+	createTaskCmd.PersistentFlags().StringSliceVarP(&tags, "tag", "t", []string{}, "Tags of the task. Can be separated by comma or specified multiple times.")
+	createTaskCmd.PersistentFlags().BoolVarP(&unassignedTask, "unassigned", "u", false, "Do not assign task")
 
-	cobra.CheckErr(createCmd.MarkPersistentFlagRequired("estimate"))
+	cobra.CheckErr(createTaskCmd.MarkPersistentFlagRequired("estimate"))
 
-	cobra.CheckErr(viper.BindPFlag("tfsProject", createCmd.PersistentFlags().Lookup("project")))
-	cobra.CheckErr(viper.BindPFlag("tfsTeam", createCmd.PersistentFlags().Lookup("team")))
-	cobra.CheckErr(viper.BindPFlag("tfsDiscipline", createCmd.PersistentFlags().Lookup("discipline")))
-	cobra.CheckErr(viper.BindPFlag("tfsUserFilter", createCmd.PersistentFlags().Lookup("user")))
+	cobra.CheckErr(viper.BindPFlag("tfsProject", createTaskCmd.PersistentFlags().Lookup("project")))
+	cobra.CheckErr(viper.BindPFlag("tfsTeam", createTaskCmd.PersistentFlags().Lookup("team")))
+	cobra.CheckErr(viper.BindPFlag("tfsDiscipline", createTaskCmd.PersistentFlags().Lookup("discipline")))
+	cobra.CheckErr(viper.BindPFlag("tfsUserFilter", createTaskCmd.PersistentFlags().Lookup("user")))
 }
 
 func createTaskCommand(ctx context.Context, title, description string) error {
@@ -96,6 +97,7 @@ func printCreateTaskResult(task *workitemtracking.WorkItem, err error, spinner *
 
 	if err != nil {
 		spinner.Fail(err.Error())
+		os.Exit(1)
 	}
 }
 
