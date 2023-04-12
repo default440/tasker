@@ -47,21 +47,30 @@ func (c *Client) NewCreator(ctx context.Context, repository string) (*Creator, e
 	return NewCreator(ctx, c, repository, c.project)
 }
 
-func (c *Client) RequestRepository(ctx context.Context) (string, error) {
+func (c *Client) GetActiveRepositories(ctx context.Context) ([]string, error) {
 	reps, err := c.GetRepositories(ctx, git.GetRepositoriesArgs{
 		Project: &c.project,
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	repNames := getRepositoryNames(*reps)
-	repNames, err = prioritizeReps(ctx, c, repNames)
+	names := getRepositoryNames(*reps)
+	names, err = prioritizeReps(ctx, c, names)
+	if err != nil {
+		return nil, err
+	}
+
+	return names, nil
+}
+
+func (c *Client) RequestRepository(ctx context.Context) (string, error) {
+	names, err := c.GetActiveRepositories(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	rep, err := ui.RequestUserSelectionString("Repository", repNames)
+	rep, err := ui.RequestUserSelectionString("Repository", names)
 	if err != nil {
 		return "", err
 	}

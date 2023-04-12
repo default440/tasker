@@ -13,12 +13,24 @@
             //"args": ["create", "bugfix", "71725", "-e", "2"],
             //"args": ["sync", "241379452"],
             // "args": ["pr", "silso"],
-            //"args": [ "pr", "create"],
-            "args": ["tech", "sync", "-r", "82874", "-p", "263166820"]
+            "args": [ "pr", "create", "-i"],
+            //"args": ["tech", "sync", "-r", "82874", "-p", "263166820"]
             // "env": {
             //     "http_proxy": "http://11.0.0.92:3128",
             //     "https_proxy": "http://11.0.0.92:3128"
             // }
+        },
+        {
+            //"preLaunchTask": "start & connect to dlv-dap",
+            "name": "Connect to server",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "main.go",
+            "env": {},
+            "args": [ "pr", "create", "-i"],
         }
     ]
 }

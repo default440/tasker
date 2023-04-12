@@ -65,7 +65,7 @@ func init() {
 	rootCmd.AddCommand(deleteWorkItemCmd)
 	rootCmd.AddCommand(copyWorkItemCmd)
 
-	copyWorkItemCmd.Flags().IntVarP(&copyWorkItemCmdParentID, "parent", "p", 0, "Id of parent of new Work Item (if specified, then source adeded as AffectedBy)")
+	copyWorkItemCmd.Flags().IntVarP(&copyWorkItemCmdParentID, "parent", "p", 0, "Id of parent of new Work Item (if specified, then source added as AffectedBy)")
 	copyWorkItemCmd.Flags().StringVarP(&copyWorkItemCmdIterationPath, "iteration", "i", "", "Iteration Path of new Work Item")
 	copyWorkItemCmd.Flags().StringVarP(&copyWorkItemCmdIterationPath, "area", "a", "", "Area Path of new Work Item")
 }

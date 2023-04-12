@@ -20,3 +20,8 @@ func JSONObject(obj interface{}) {
 	}
 	fmt.Println(string(j))
 }
+
+func JSONObjectToColorString(obj interface{}) string {
+	s, _ := prettyjson.Marshal(obj)
+	return string(s)
+}
