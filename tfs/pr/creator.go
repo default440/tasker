@@ -150,7 +150,10 @@ func copyToClipboard(pr *git.GitPullRequest) error {
 	text := fmt.Sprintf("Pull Request %d: %s", *pr.PullRequestId, *pr.Title)
 	repShortName := getRepositoryShortName(*pr.Repository.Name)
 	repSpecialMark := getRepositorySpecialMark(*pr.Repository.Name)
-	html := fmt.Sprintf("<span>:%s: %s </span><a href=\"%s\">Pull Request %d</a><span>: </span><span>%s</span>", repShortName, repSpecialMark, url, *pr.PullRequestId, *pr.Title)
+	if repSpecialMark != "" {
+		repSpecialMark += " "
+	}
+	html := fmt.Sprintf("<span>:%s: %s</span><a href=\"%s\">Pull Request %d</a><span>: </span><span>%s</span>", repShortName, repSpecialMark, url, *pr.PullRequestId, *pr.Title)
 
 	return clipboard.Write(html, text)
 }
