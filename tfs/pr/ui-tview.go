@@ -27,16 +27,20 @@ type tviewUI struct {
 	workItemsInput       *tview.InputField
 	mergeMessageInput    *tview.TextArea
 
-	sourceBranch git.GitBranchStats
-	targetBranch git.GitBranchStats
-	repository   string
-	workItems    []string
-	squash       bool
-	mergeMessage string
+	sourceBranch    git.GitBranchStats
+	targetBranch    git.GitBranchStats
+	repository      string
+	workItems       []string
+	squash          bool
+	withWorkItemIDs bool
+	mergeMessage    string
 }
 
-func NewTviewUI() (*tviewUI, error) {
-	ui := tviewUI{}
+func NewTviewUI(withWorkItemIDs bool) (*tviewUI, error) {
+	ui := tviewUI{
+		squash:          true,
+		withWorkItemIDs: withWorkItemIDs,
+	}
 
 	app := tview.NewApplication()
 	form := tview.NewForm()
@@ -72,8 +76,11 @@ func NewTviewUI() (*tviewUI, error) {
 	form.AddFormItem(ui.targetBranchDropDown)
 	form.AddFormItem(ui.mergeMessageInput)
 	form.AddFormItem(ui.workItemsInput)
-	form.AddCheckbox("Squash pr?", true, func(checked bool) {
+	form.AddCheckbox("Squash pr?", ui.squash, func(checked bool) {
 		ui.squash = checked
+	})
+	form.AddCheckbox("Prepend work item IDs to commit message?", ui.withWorkItemIDs, func(withWorkItemIDs bool) {
+		ui.withWorkItemIDs = withWorkItemIDs
 	})
 	form.AddButton("Create", func() {
 		ui.execCreateHandler()
@@ -124,12 +131,13 @@ func (ui *tviewUI) execCreateHandler() {
 	handler := ui.createHandler
 	if handler != nil {
 		result := UserSelections{
-			SourceBranch: &ui.sourceBranch,
-			TargetBranch: &ui.targetBranch,
-			Repository:   ui.repository,
-			WorkItems:    ui.workItems,
-			MergeMessage: ui.mergeMessage,
-			Squash:       ui.squash,
+			SourceBranch:    &ui.sourceBranch,
+			TargetBranch:    &ui.targetBranch,
+			Repository:      ui.repository,
+			WorkItems:       ui.workItems,
+			MergeMessage:    ui.mergeMessage,
+			Squash:          ui.squash,
+			WithWorkItemIDs: ui.withWorkItemIDs,
 		}
 		handler(result)
 	}

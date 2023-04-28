@@ -149,7 +149,8 @@ func copyToClipboard(pr *git.GitPullRequest) error {
 	url := GetPullRequestURL(pr)
 	text := fmt.Sprintf("Pull Request %d: %s", *pr.PullRequestId, *pr.Title)
 	repShortName := getRepositoryShortName(*pr.Repository.Name)
-	html := fmt.Sprintf("<span>:%s: </span><a href=\"%s\">Pull Request %d</a><span>: </span><span>%s</span>", repShortName, url, *pr.PullRequestId, *pr.Title)
+	repSpecialMark := getRepositorySpecialMark(*pr.Repository.Name)
+	html := fmt.Sprintf("<span>:%s: %s </span><a href=\"%s\">Pull Request %d</a><span>: </span><span>%s</span>", repShortName, repSpecialMark, url, *pr.PullRequestId, *pr.Title)
 
 	return clipboard.Write(html, text)
 }
@@ -162,6 +163,17 @@ func getRepositoryShortName(name string) string {
 		return "ang"
 	default:
 		return name
+	}
+}
+
+func getRepositorySpecialMark(name string) string {
+	switch name {
+	case "security_management_platform":
+		return "[MS]"
+	case "smp_kc":
+		return "[KC]"
+	default:
+		return ""
 	}
 }
 

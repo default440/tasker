@@ -154,7 +154,7 @@ func createTechDebtTasks(ctx context.Context, pages []*techDebtPage, tfsApi *tfs
 		progressbar.UpdateTitle(fmt.Sprintf("Creating %s", cutString(page.Title, 20, true)))
 		tags := []string{"Tech", "TechBacklog", "Prime", "SMP", "Core"}
 		tags = append(tags, page.Labels...)
-		tfsTask, err := tfsApi.CreateChildTask(ctx, page.Title, page.Description, 0, requirement, tags)
+		tfsTask, err := tfsApi.CreateChildTask(ctx, page.Title, page.Description, 8, requirement, tags)
 
 		if err != nil {
 			pterm.Error.Println(fmt.Sprintf("TFS Task NOT CREATED %s: %s", page.Title, err.Error()))

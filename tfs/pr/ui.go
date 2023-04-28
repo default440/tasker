@@ -16,12 +16,13 @@ var (
 )
 
 type UserSelections struct {
-	SourceBranch *git.GitBranchStats `validate:"required"`
-	TargetBranch *git.GitBranchStats `validate:"required"`
-	Repository   string              `validate:"required"`
-	WorkItems    []string            `validate:"required"`
-	MergeMessage string              `validate:"required"`
-	Squash       bool
+	SourceBranch    *git.GitBranchStats `validate:"required"`
+	TargetBranch    *git.GitBranchStats `validate:"required"`
+	Repository      string              `validate:"required"`
+	WorkItems       []string            `validate:"required"`
+	MergeMessage    string              `validate:"required"`
+	Squash          bool
+	WithWorkItemIDs bool
 }
 
 type UI interface {

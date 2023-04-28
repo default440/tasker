@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	"tasker/prettyprint"
@@ -58,10 +59,11 @@ var (
 		},
 	}
 
-	createPrCmdFlagProject    string
-	createPrCmdFlagMessage    string
-	createPrCmdFlagRepository string
-	createPrCmdFlagOldUI      bool
+	createPrCmdFlagProject         string
+	createPrCmdFlagMessage         string
+	createPrCmdFlagRepository      string
+	createPrCmdFlagOldUI           bool
+	createPrCmdFlagWithWorkItemIDs bool
 )
 
 func init() {
@@ -73,6 +75,7 @@ func init() {
 	createPrCmd.Flags().StringVarP(&createPrCmdFlagMessage, "message", "m", "", "Megre commit message")
 	createPrCmd.Flags().StringVarP(&createPrCmdFlagRepository, "repository", "r", "", "TFS repository name")
 	createPrCmd.Flags().BoolVarP(&createPrCmdFlagOldUI, "old-ui", "o", false, "Old UI")
+	createPrCmd.Flags().BoolVarP(&createPrCmdFlagWithWorkItemIDs, "with-wi", "w", false, "Prepend work item IDs to commit message?")
 }
 
 func getPrCommand(ctx context.Context, id int) error {
@@ -156,17 +159,11 @@ func createPrCommandInteractive(ctx context.Context, mergeMessage string) error 
 		return err
 	}
 
-	ui, err := pr.NewTviewUI()
+	ui, err := pr.NewTviewUI(createPrCmdFlagWithWorkItemIDs)
 	if err != nil {
 		return err
 	}
 	defer ui.Stop()
-
-	if mergeMessage == "" {
-		mergeMessage = createPrCmdFlagMessage
-	}
-
-	ui.SetMergeMessage(mergeMessage)
 
 	errChan := make(chan error)
 
@@ -196,6 +193,10 @@ func createPrCommandInteractive(ctx context.Context, mergeMessage string) error 
 		ui.SetTargetBranches(targets)
 	})
 
+	if mergeMessage == "" {
+		mergeMessage = createPrCmdFlagMessage
+	}
+
 	if mergeMessage != "" {
 		ui.SetMergeMessage(mergeMessage)
 	} else {
@@ -219,8 +220,12 @@ func createPrCommandInteractive(ctx context.Context, mergeMessage string) error 
 		}
 
 		// errChan <- errors.New(prettyprint.JSONObjectToColorString(s))
+		mergeMessage := s.MergeMessage
+		if s.WithWorkItemIDs {
+			mergeMessage = prependWorkItemIDs(mergeMessage, s.WorkItems)
+		}
 
-		pullrequest, err := creator.CreatePullRequest(ctx, s.SourceBranch, s.TargetBranch, s.MergeMessage, s.WorkItems, s.Squash)
+		pullrequest, err := creator.CreatePullRequest(ctx, s.SourceBranch, s.TargetBranch, mergeMessage, s.WorkItems, s.Squash)
 		if pullrequest != nil {
 			url := pr.GetPullRequestURL(pullrequest)
 			ui.Stop()
@@ -240,4 +245,11 @@ func createPrCommandInteractive(ctx context.Context, mergeMessage string) error 
 	}
 
 	return <-errChan
+}
+
+func prependWorkItemIDs(mergeMessage string, workItemIDs []string) string {
+	for _, wi := range workItemIDs {
+		mergeMessage = fmt.Sprintf("#%s %s", wi, mergeMessage)
+	}
+	return mergeMessage
 }
