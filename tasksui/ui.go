@@ -3,7 +3,6 @@ package tasksui
 import (
 	"fmt"
 	"strings"
-	"tasker/wiki"
 	"unicode/utf8"
 
 	"github.com/gdamore/tcell/v2"
@@ -41,14 +40,14 @@ func (u *ui) drawTotal() {
 	for _, table := range u.tables {
 		tasksTotalCount += len(table.tasks)
 		for _, t := range table.tasks {
-			totalEstimate += t.Estimate
+			totalEstimate += t.GetEstimate()
 		}
 	}
 
 	u.totalInfo.SetText(fmt.Sprintf("Total tasks: %d, estimate: %v", tasksTotalCount, totalEstimate))
 }
 
-func PreviewTasks(tables []*wiki.Table) (bool, error) {
+func PreviewTasks(tables []Table) (bool, error) {
 	ui := newUI(tables)
 	defer ui.app.Stop()
 
@@ -62,7 +61,7 @@ func PreviewTasks(tables []*wiki.Table) (bool, error) {
 	return ui.approved, <-resultChan
 }
 
-func newUI(tables []*wiki.Table) *ui {
+func newUI(tables []Table) *ui {
 	u := ui{
 		app:   tview.NewApplication(),
 		pages: tview.NewPages(),
@@ -150,7 +149,7 @@ func newUI(tables []*wiki.Table) *ui {
 		gridRowNumber++
 	}
 
-	gridRowsSizes := lo.Map(tables, func(_ *wiki.Table, _ int) int {
+	gridRowsSizes := lo.Map(tables, func(_ Table, _ int) int {
 		return 0
 	})
 

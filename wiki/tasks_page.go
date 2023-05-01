@@ -6,8 +6,10 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"tasker/tasksui"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/samber/lo"
 )
 
 var (
@@ -38,10 +40,30 @@ type Task struct {
 	tr          *goquery.Selection
 }
 
+func (t *Task) GetTitle() string                  { return t.Title }
+func (t *Task) SetTitle(title string)             { t.Title = title }
+func (t *Task) GetDescription() string            { return t.Description }
+func (t *Task) SetDescription(description string) { t.Description = description }
+func (t *Task) GetEstimate() float32              { return t.Estimate }
+func (t *Task) SetEstimate(estimate float32)      { t.Estimate = estimate }
+func (t *Task) GetTfsTaskID() int                 { return t.TfsTaskID }
+func (t *Task) SetTfsTaskID(tfsTaskID int)        { t.TfsTaskID = tfsTaskID }
+func (t *Task) Clone() tasksui.Task {
+	t2 := *t
+	return &t2
+}
+
 type Table struct {
 	Number int
 	Index  int
 	Tasks  []*Task
+}
+
+func (t *Table) GetTasks() []tasksui.Task {
+	return lo.Map(t.Tasks, func(tsk *Task, _ int) tasksui.Task { return tsk })
+}
+func (t *Table) SetTask(tsk tasksui.Task, index int) {
+	t.Tasks[index] = tsk.(*Task)
 }
 
 func (t *Task) Update(html string) {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"tasker/tasksui"
 	"tasker/tfs"
 	"tasker/wiki"
 
@@ -73,7 +74,32 @@ func init() {
 
 type techDebtPage struct {
 	*wiki.TechDebt
-	content *goconfluence.Content
+	content  *goconfluence.Content
+	estimate float32
+}
+
+func (t *techDebtPage) GetTitle() string                  { return t.Title }
+func (t *techDebtPage) SetTitle(title string)             { t.Title = title }
+func (t *techDebtPage) GetDescription() string            { return t.Description }
+func (t *techDebtPage) SetDescription(description string) { t.Description = description }
+func (t *techDebtPage) GetEstimate() float32              { return t.estimate }
+func (t *techDebtPage) SetEstimate(estimate float32)      { t.estimate = estimate }
+func (t *techDebtPage) GetTfsTaskID() int                 { return 0 }
+func (t *techDebtPage) SetTfsTaskID(tfsTaskID int)        {}
+func (t *techDebtPage) Clone() tasksui.Task {
+	t2 := *t
+	return &t2
+}
+
+type techDebtPageTable struct {
+	pages []*techDebtPage
+}
+
+func (t *techDebtPageTable) GetTasks() []tasksui.Task {
+	return lo.Map(t.pages, func(page *techDebtPage, _ int) tasksui.Task { return page })
+}
+func (t *techDebtPageTable) SetTask(tsk tasksui.Task, index int) {
+	t.pages[index] = tsk.(*techDebtPage)
 }
 
 func syncTechCommand(ctx context.Context) error {
@@ -125,15 +151,24 @@ func syncTechCommand(ctx context.Context) error {
 		return err
 	}
 
-	previewTechDebtTasks(pages)
+	// previewTechDebtTasks(pages)
 
-	ok, err := requestConfirmationTechDebt()
+	// ok, err := requestConfirmationTechDebt()
+	// if err != nil {
+	// 	return err
+	// }
+
+	uiTables := []tasksui.Table{
+		&techDebtPageTable{pages: pages},
+	}
+
+	ok, err := tasksui.PreviewTasks(uiTables)
 	if err != nil {
 		return err
 	}
 
 	if !ok {
-		return errors.New("canceled by user")
+		return nil
 	}
 
 	err = createTechDebtTasks(ctx, pages, tfsApi, wikiApi, requirement)
@@ -154,7 +189,7 @@ func createTechDebtTasks(ctx context.Context, pages []*techDebtPage, tfsApi *tfs
 		progressbar.UpdateTitle(fmt.Sprintf("Creating %s", cutString(page.Title, 20, true)))
 		tags := []string{"Tech", "TechBacklog", "Prime", "SMP", "Core"}
 		tags = append(tags, page.Labels...)
-		tfsTask, err := tfsApi.CreateChildTask(ctx, page.Title, page.Description, 8, requirement, tags)
+		tfsTask, err := tfsApi.CreateChildTask(ctx, page.Title, page.Description, page.estimate, requirement, tags)
 
 		if err != nil {
 			pterm.Error.Println(fmt.Sprintf("TFS Task NOT CREATED %s: %s", page.Title, err.Error()))
@@ -218,6 +253,7 @@ func parseTechDebtPages(ctx context.Context, pageIDs []string, api *goconfluence
 			pages = append(pages, &techDebtPage{
 				TechDebt: &techDebt,
 				content:  content,
+				estimate: 4,
 			})
 			m.Unlock()
 

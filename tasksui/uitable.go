@@ -2,7 +2,6 @@ package tasksui
 
 import (
 	"fmt"
-	"tasker/wiki"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/pterm/pterm"
@@ -10,7 +9,7 @@ import (
 )
 
 type uiTable struct {
-	tasks      []*wiki.Task
+	tasks      []Task
 	view       *tview.Table
 	rows       []*uiRow
 	headerRows int
@@ -22,21 +21,26 @@ func (ut *uiTable) draw() {
 	}
 }
 
-func (u *ui) newTable(table *wiki.Table) *uiTable {
+func (u *ui) newTable(table Table) *uiTable {
 	view := tview.NewTable()
-	tasks := table.Tasks
+	tasks := table.GetTasks()
 
 	ut := uiTable{
 		tasks: tasks,
 		view:  view,
 	}
 
-	editRow := func(row int) {
-		u.editTask(*tasks[row],
-			func(t wiki.Task) {
-				r := ut.rows[row-1]
-				*r.task = t
-				r.draw()
+	editRow := func(rowNumber int) {
+		taskIndex := rowNumber - ut.headerRows
+		if taskIndex < 0 || taskIndex >= len(tasks) {
+			return
+		}
+		u.editTask(tasks[taskIndex].Clone(),
+			func(updatedTask Task) {
+				row := ut.rows[taskIndex]
+				row.task = updatedTask
+				table.SetTask(updatedTask, taskIndex)
+				row.draw()
 				u.drawTotal()
 				u.app.SetFocus(view)
 			},
@@ -60,7 +64,7 @@ func (u *ui) newTable(table *wiki.Table) *uiTable {
 		}).
 		SetSelectedFunc(func(row int, column int) {
 			if row != 0 && row <= len(tasks) {
-				editRow(row - ut.headerRows)
+				editRow(row)
 			}
 		}).
 		SetFocusFunc(func() {
@@ -76,7 +80,7 @@ func (u *ui) newTable(table *wiki.Table) *uiTable {
 			case tview.MouseLeftDoubleClick:
 				row, _ := view.GetSelection()
 				if row >= 0 {
-					editRow(row - ut.headerRows)
+					editRow(row)
 				}
 			}
 
@@ -105,7 +109,7 @@ func (ut *uiTable) createRows(titleWidth, descriptionWidth int) {
 	ut.headerRows = row
 
 	for _, task := range ut.tasks {
-		totalEstimate += task.Estimate
+		totalEstimate += task.GetEstimate()
 		ut.rows = append(ut.rows, newRow(ut.view, task, row, titleWidth, descriptionWidth))
 		row++
 	}

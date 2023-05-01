@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/workitemtracking"
 	"github.com/pterm/pterm"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	goconfluence "github.com/virtomize/confluence-go-api"
 )
@@ -128,7 +129,11 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 	// remove empty and not selected tables by grouping remained tasks again
 	tables, _ = wiki.GroupByTable(tasks)
 
-	ok, err := tasksui.PreviewTasks(tables)
+	uiTables := lo.Map(tables, func(tbl *wiki.Table, _ int) tasksui.Table {
+		return tbl
+	})
+
+	ok, err := tasksui.PreviewTasks(uiTables)
 	if err != nil {
 		return err
 	}

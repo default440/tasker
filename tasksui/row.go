@@ -2,7 +2,6 @@ package tasksui
 
 import (
 	"fmt"
-	"tasker/wiki"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -10,7 +9,7 @@ import (
 
 type uiRow struct {
 	table            *tview.Table
-	task             *wiki.Task
+	task             Task
 	rowNumber        int
 	titleWidth       int
 	descriptionWidth int
@@ -19,21 +18,21 @@ type uiRow struct {
 func (r *uiRow) draw() {
 	tfsTaskID := ""
 	switch {
-	case r.task.TfsTaskID < 0:
+	case r.task.GetTfsTaskID() < 0:
 		tfsTaskID = "n/a"
-	case r.task.TfsTaskID == 0:
+	case r.task.GetTfsTaskID() == 0:
 	default:
-		tfsTaskID = fmt.Sprintf("%d", r.task.TfsTaskID)
+		tfsTaskID = fmt.Sprintf("%d", r.task.GetTfsTaskID())
 	}
 
 	r.table.SetCell(r.rowNumber, 0, tview.NewTableCell(fmt.Sprintf("%d", r.rowNumber)).SetTextColor(tcell.ColorDimGray))
-	r.table.SetCell(r.rowNumber, 1, tview.NewTableCell(cutString(r.task.Title, r.titleWidth, true)))
-	r.table.SetCell(r.rowNumber, 2, tview.NewTableCell(cutString(r.task.Description, r.descriptionWidth, true)))
-	r.table.SetCell(r.rowNumber, 3, tview.NewTableCell(fmt.Sprintf("%v", r.task.Estimate)))
+	r.table.SetCell(r.rowNumber, 1, tview.NewTableCell(cutString(r.task.GetTitle(), r.titleWidth, true)))
+	r.table.SetCell(r.rowNumber, 2, tview.NewTableCell(cutString(r.task.GetDescription(), r.descriptionWidth, true)))
+	r.table.SetCell(r.rowNumber, 3, tview.NewTableCell(fmt.Sprintf("%v", r.task.GetEstimate())))
 	r.table.SetCell(r.rowNumber, 4, tview.NewTableCell(tfsTaskID))
 }
 
-func newRow(table *tview.Table, task *wiki.Task, rowNumber, titleWidth, descriptionWidth int) *uiRow {
+func newRow(table *tview.Table, task Task, rowNumber, titleWidth, descriptionWidth int) *uiRow {
 	r := uiRow{
 		table:            table,
 		task:             task,
