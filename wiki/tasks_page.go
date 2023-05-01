@@ -38,6 +38,12 @@ type Task struct {
 	tr          *goquery.Selection
 }
 
+type Table struct {
+	Number int
+	Index  int
+	Tasks  []*Task
+}
+
 func (t *Task) Update(html string) {
 	if t.tfsColumn != nil {
 		t.tfsColumn.SetHtml(html)
@@ -219,4 +225,30 @@ func fixMarkup(markup string) string {
 func restoreMarkup(markup string) string {
 	markup = cdataRegexp.ReplaceAllString(markup, "<![CDATA[$2]]>")
 	return markup
+}
+
+func GroupByTable(tasks []*Task) ([]*Table, error) {
+	var tables []*Table
+	m := make(map[int]*Table)
+	for _, t := range tasks {
+		tableIndex := t.TableIndex()
+
+		if tableIndex == -1 {
+			return nil, errors.New("table index not found")
+		}
+
+		table, ok := m[tableIndex]
+		if !ok {
+			table = &Table{
+				Number: len(tables) + 1,
+				Index:  tableIndex,
+			}
+			tables = append(tables, table)
+			m[tableIndex] = table
+		}
+
+		table.Tasks = append(table.Tasks, t)
+	}
+
+	return tables, nil
 }

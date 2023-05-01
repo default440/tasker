@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"tasker/tasksui"
 	"tasker/tfs"
 	"tasker/wiki"
 
@@ -91,7 +92,7 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 		return err
 	}
 
-	tables, err := groupByTable(tasks)
+	tables, err := wiki.GroupByTable(tasks)
 	if err != nil {
 		return err
 	}
@@ -125,19 +126,21 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 	}
 
 	// remove empty and not selected tables by grouping remained tasks again
-	tables, _ = groupByTable(tasks)
+	tables, _ = wiki.GroupByTable(tasks)
 
-	err = requestConfirmation(tables)
+	ok, err := tasksui.PreviewTasks(tables)
 	if err != nil {
 		return err
 	}
 
-	err = createTasks(ctx, int(syncCmdFlagfeatureWorkItemID), tasks)
-	if err != nil {
-		return err
-	}
+	if ok {
+		err = createTasks(ctx, int(syncCmdFlagfeatureWorkItemID), tasks)
+		if err != nil {
+			return err
+		}
 
-	err = updateWikiPage(api, content, tasks)
+		err = updateWikiPage(api, content, tasks)
+	}
 
 	return err
 }
@@ -251,7 +254,7 @@ func createTfsTaskMacros(task *workitemtracking.WorkItem) string {
 		</div>`
 }
 
-func addTitlePrefixes(table *Table, withPartNumber bool) {
+func addTitlePrefixes(table *wiki.Table, withPartNumber bool) {
 	for i, t := range table.Tasks {
 		if !syncCmdFlagNoTitleAutoPrefix && !startedWithNumberRegexp.MatchString(t.Title) {
 			t.Title = fmt.Sprintf("%02d. %s", i+1, t.Title)
@@ -265,7 +268,7 @@ func addTitlePrefixes(table *Table, withPartNumber bool) {
 	}
 }
 
-func requestConfirmation(tables []*Table) error {
+func requestConfirmation(tables []*wiki.Table) error {
 	var tasksTotalCount int
 	var totalEstimate int
 	for _, table := range tables {
@@ -302,38 +305,6 @@ func requestConfirmation(tables []*Table) error {
 	}
 
 	return nil
-}
-
-type Table struct {
-	Number int
-	Index  int
-	Tasks  []*wiki.Task
-}
-
-func groupByTable(tasks []*wiki.Task) ([]*Table, error) {
-	var tables []*Table
-	m := make(map[int]*Table)
-	for _, t := range tasks {
-		tableIndex := t.TableIndex()
-
-		if tableIndex == -1 {
-			return nil, errors.New("table index not found")
-		}
-
-		table, ok := m[tableIndex]
-		if !ok {
-			table = &Table{
-				Number: len(tables) + 1,
-				Index:  tableIndex,
-			}
-			tables = append(tables, table)
-			m[tableIndex] = table
-		}
-
-		table.Tasks = append(table.Tasks, t)
-	}
-
-	return tables, nil
 }
 
 func previewTasks(tasks []*wiki.Task) {

@@ -28,7 +28,7 @@ func NewClient() (*goconfluence.API, error) {
 		},
 	}
 
-	goconfluence.DebugFlag = true
+	// goconfluence.DebugFlag = true
 
 	return goconfluence.NewAPIWithClient(apiBaseAddress, client)
 }
