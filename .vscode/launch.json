@@ -13,7 +13,8 @@
             //"args": ["create", "bugfix", "71725", "-e", "2"],
             //"args": ["sync", "241379452"],
             // "args": ["pr", "silso"],
-            "args": [ "pr", "create", "-i"],
+            //"args": [ "pr", "create", "-i"],
+            "args": [ "wiki", "move", "305954853", "282368371" ],
             //"args": ["tech", "sync", "-r", "82874", "-p", "263166820"]
             // "env": {
             //     "http_proxy": "http://11.0.0.92:3128",

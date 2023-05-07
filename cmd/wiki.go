@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"tasker/wiki"
@@ -18,7 +19,7 @@ var (
 	}
 
 	moveWikiCmd = &cobra.Command{
-		Use:   "move <Page ID, ...> -t <Target ID>",
+		Use:   "move <Page ID, ..., [Target ID]>",
 		Short: "Move wiki pages",
 		Long:  `Replace wiki pages under new parent.`,
 		Args:  cobra.MinimumNArgs(1),
@@ -31,6 +32,15 @@ var (
 				}
 				pageIDs[i] = uint(pageId)
 			}
+
+			if len(pageIDs) <= 1 && moveWikiCmdFlagNewParentPageID == 0 {
+				cobra.CheckErr(errors.New("provide target page ID either by last argumnent or by -t param"))
+				return
+			} else {
+				moveWikiCmdFlagNewParentPageID = pageIDs[len(pageIDs)-1]
+				pageIDs = pageIDs[:len(pageIDs)-1]
+			}
+
 			err := moveWikiPagesCommand(cmd.Context(), pageIDs)
 			cobra.CheckErr(err)
 		},
@@ -44,8 +54,6 @@ func init() {
 	wikiCmd.AddCommand(moveWikiCmd)
 
 	moveWikiCmd.Flags().UintVarP(&moveWikiCmdFlagNewParentPageID, "target", "t", 0, "ID of target parent Wiki page")
-
-	cobra.CheckErr(moveWikiCmd.MarkFlagRequired("target"))
 }
 
 func moveWikiPagesCommand(ctx context.Context, pageIDs []uint) error {
@@ -61,15 +69,15 @@ func moveWikiPagesCommand(ctx context.Context, pageIDs []uint) error {
 
 	for i := 0; i < len(pageIDs); i++ {
 		progressbar.UpdateTitle(fmt.Sprintf("Moving... %d", pageIDs[i]))
-		err = wiki.MovePage(api, pageIDs[i], moveWikiCmdFlagNewParentPageID)
+		title, err := wiki.MovePage(api, pageIDs[i], moveWikiCmdFlagNewParentPageID)
 		if err != nil {
-			pterm.Error.Println(fmt.Sprintf("NOT MOVED %d: %s", pageIDs[i], err.Error()))
+			pterm.Error.Println(fmt.Sprintf("NOT MOVED %d %s: %s", pageIDs[i], title, err.Error()))
 		} else {
-			pterm.Success.Println(fmt.Sprintf("MOVED %d", pageIDs[i]))
+			pterm.Success.Println(fmt.Sprintf("MOVED %d %s", pageIDs[i], title))
 		}
 	}
 
 	_, _ = progressbar.Stop()
 
-	return nil
+	return err
 }

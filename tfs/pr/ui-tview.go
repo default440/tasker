@@ -43,9 +43,14 @@ func NewTviewUI(withWorkItemIDs bool) (*tviewUI, error) {
 	}
 
 	app := tview.NewApplication()
+
+	grid := tview.NewGrid()
+	grid.SetRows(0, 1)
+	grid.AddItem(tview.NewTextView().SetText(" Press Ctrl+S for save, press Ctrl+C or ESC to exit"), 1, 0, 1, 1, 0, 0, false)
+
 	form := tview.NewForm()
 	form.SetBorder(true)
-	form.SetTitle(" Ctr+S create, Ctrl+C exit ")
+	grid.AddItem(form, 0, 0, 1, 1, 0, 0, true)
 
 	ui.app = app
 	ui.repositoriesDropDown = tview.NewDropDown().SetLabel("Repository")
@@ -88,18 +93,21 @@ func NewTviewUI(withWorkItemIDs bool) (*tviewUI, error) {
 	form.AddButton("Cancel", func() {
 		ui.execCancelHandler()
 	})
+	form.SetFocus(form.GetFormItemCount())
 
 	app.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
 		switch ev.Key() {
 		case tcell.KeyCtrlS:
 			ui.execCreateHandler()
+		case tcell.KeyEsc:
+			ui.execCancelHandler()
 		}
 
 		return ev
 	})
 
 	go func() {
-		if err := app.SetRoot(form, true).EnableMouse(true).Run(); err != nil {
+		if err := app.SetRoot(grid, true).EnableMouse(true).Run(); err != nil {
 			ui.execErrHandler(err)
 		}
 		ui.execCancelHandler()
