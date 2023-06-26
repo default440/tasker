@@ -1,7 +1,7 @@
 package wiki
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,7 +15,7 @@ func setNodesToNil(tasks []*Task) {
 }
 
 func Test_ParseTasks_Page1(t *testing.T) {
-	file, err := ioutil.ReadFile("../testdata/wiki_page_1.html")
+	file, err := os.ReadFile("../testdata/wiki_page_1.html")
 	assert.NoError(t, err)
 
 	tasks, err := ParseTasks(string(file))
@@ -61,7 +61,7 @@ func Test_ParseTasks_Page1(t *testing.T) {
 }
 
 func Test_ParseTasks_Page2(t *testing.T) {
-	file, err := ioutil.ReadFile("../testdata/wiki_page_2.html")
+	file, err := os.ReadFile("../testdata/wiki_page_2.html")
 	assert.NoError(t, err)
 
 	tasks, err := ParseTasks(string(file))

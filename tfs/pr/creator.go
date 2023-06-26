@@ -137,12 +137,12 @@ func (c *Creator) CollectWorkItems(sourceBranch *git.GitBranchStats, mergeMessag
 func (c *Creator) SuggestMergeMessage(targetBranch *git.GitBranchStats) string {
 	if initialPrBranchCommit, found := getInitialPrBranchCommit(c.userCommits, targetBranch); found {
 		return *initialPrBranchCommit.Comment
-	} else {
-		if lastCommit, ok := c.getLastCommit(); ok {
-			return *lastCommit.Comment
-		}
-		return ""
 	}
+
+	if lastCommit, ok := c.getLastCommit(); ok {
+		return *lastCommit.Comment
+	}
+	return ""
 }
 
 func copyToClipboard(pr *git.GitPullRequest) error {

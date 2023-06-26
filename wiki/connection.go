@@ -12,7 +12,7 @@ import (
 	goconfluence "github.com/virtomize/confluence-go-api"
 )
 
-func NewClient() (*goconfluence.API, error) {
+func NewClient() (*API, error) {
 	accessToken := viper.GetString("wikiAccessToken")
 	username := viper.GetString("wikiUserName")
 	password := viper.GetString("wikiPassword")
@@ -40,9 +40,15 @@ func NewClient() (*goconfluence.API, error) {
 		Jar: jar,
 	}
 
-	//goconfluence.DebugFlag = true
+	if viper.GetBool("debug") {
+		goconfluence.SetDebug(true)
+	}
 
-	return goconfluence.NewAPIWithClient(apiBaseAddress, client)
+	a, err := goconfluence.NewAPIWithClient(apiBaseAddress, client)
+	if err != nil {
+		return nil, err
+	}
+	return &API{a}, nil
 }
 
 func getAPIBaseAddress() (string, error) {

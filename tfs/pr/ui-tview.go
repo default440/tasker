@@ -10,7 +10,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-type tviewUI struct {
+type TviewUI struct {
 	repositoryChangeHandler   func(repository string)
 	targetBranchChangeHandler func(targetBranch git.GitBranchStats)
 	sourceBranchChangeHandler func(sourceBranch git.GitBranchStats)
@@ -36,10 +36,10 @@ type tviewUI struct {
 	mergeMessage    string
 }
 
-func NewTviewUI(withWorkItemIDs bool) (*tviewUI, error) {
-	ui := tviewUI{
+func NewTviewUI() (*TviewUI, error) {
+	ui := TviewUI{
 		squash:          true,
-		withWorkItemIDs: withWorkItemIDs,
+		withWorkItemIDs: true,
 	}
 
 	app := tview.NewApplication()
@@ -116,18 +116,18 @@ func NewTviewUI(withWorkItemIDs bool) (*tviewUI, error) {
 	return &ui, nil
 }
 
-func (ui *tviewUI) execErrHandler(err error) {
+func (ui *TviewUI) execErrHandler(err error) {
 	handler := ui.errHandler
 	if handler != nil {
 		handler(err)
 	}
 }
 
-func (ui *tviewUI) Stop() {
+func (ui *TviewUI) Stop() {
 	ui.app.Stop()
 }
 
-func (ui *tviewUI) execCancelHandler() {
+func (ui *TviewUI) execCancelHandler() {
 	ui.Stop()
 	handler := ui.cancelHandler
 	if handler != nil {
@@ -135,7 +135,7 @@ func (ui *tviewUI) execCancelHandler() {
 	}
 }
 
-func (ui *tviewUI) execCreateHandler() {
+func (ui *TviewUI) execCreateHandler() {
 	handler := ui.createHandler
 	if handler != nil {
 		result := UserSelections{
@@ -151,7 +151,7 @@ func (ui *tviewUI) execCreateHandler() {
 	}
 }
 
-func (ui *tviewUI) SetRepositories(repositories []string) {
+func (ui *TviewUI) SetRepositories(repositories []string) {
 	ui.repositories = repositories
 	ui.repositoriesDropDown.
 		SetOptions(repositories, func(text string, index int) {
@@ -166,7 +166,7 @@ func (ui *tviewUI) SetRepositories(repositories []string) {
 	ui.app.Draw()
 }
 
-func (ui *tviewUI) SetRepository(repository string) {
+func (ui *TviewUI) SetRepository(repository string) {
 	i := slices.Index(ui.repositories, repository)
 	if i >= 0 {
 		ui.repositoriesDropDown.SetCurrentOption(i)
@@ -174,14 +174,14 @@ func (ui *tviewUI) SetRepository(repository string) {
 	}
 }
 
-func (ui *tviewUI) execRepositoryChangeHandler(repository string) {
+func (ui *TviewUI) execRepositoryChangeHandler(repository string) {
 	handler := ui.repositoryChangeHandler
 	if handler != nil {
 		handler(repository)
 	}
 }
 
-func (ui *tviewUI) SetSourceBranches(branches []git.GitBranchStats) {
+func (ui *TviewUI) SetSourceBranches(branches []git.GitBranchStats) {
 	options := getBranchNames(branches)
 	ui.sourceBranchDropDown.
 		SetOptions(options, func(text string, index int) {
@@ -197,7 +197,7 @@ func (ui *tviewUI) SetSourceBranches(branches []git.GitBranchStats) {
 	}
 }
 
-func (ui *tviewUI) SetTargetBranches(branches []git.GitBranchStats) {
+func (ui *TviewUI) SetTargetBranches(branches []git.GitBranchStats) {
 	options := getBranchNames(branches)
 	ui.targetBranchDropDown.
 		SetOptions(options, func(text string, index int) {
@@ -213,12 +213,12 @@ func (ui *tviewUI) SetTargetBranches(branches []git.GitBranchStats) {
 	}
 }
 
-func (ui *tviewUI) SetWorkItems(workItemIDs []string) {
+func (ui *TviewUI) SetWorkItems(workItemIDs []string) {
 	initialValue := strings.Join(workItemIDs, ", ")
 	ui.workItemsInput.SetText(initialValue)
 }
 
-func (ui *tviewUI) SetMergeMessage(mergeMessage string) {
+func (ui *TviewUI) SetMergeMessage(mergeMessage string) {
 	ui.mergeMessageInput.SetText(mergeMessage, true)
 }
 
@@ -230,26 +230,26 @@ func getBranchNames(branches []git.GitBranchStats) []string {
 	return options
 }
 
-func (ui *tviewUI) SetRepositoryChangeHandler(handler func(repository string)) {
+func (ui *TviewUI) SetRepositoryChangeHandler(handler func(repository string)) {
 	ui.repositoryChangeHandler = handler
 }
 
-func (ui *tviewUI) SetTargetBranchChangeHandler(handler func(targetBranch git.GitBranchStats)) {
+func (ui *TviewUI) SetTargetBranchChangeHandler(handler func(targetBranch git.GitBranchStats)) {
 	ui.targetBranchChangeHandler = handler
 }
 
-func (ui *tviewUI) SetSourceBranchChangeHandler(handler func(sourceBranch git.GitBranchStats)) {
+func (ui *TviewUI) SetSourceBranchChangeHandler(handler func(sourceBranch git.GitBranchStats)) {
 	ui.sourceBranchChangeHandler = handler
 }
 
-func (ui *tviewUI) SetCreateHandler(handler func(selections UserSelections)) {
+func (ui *TviewUI) SetCreateHandler(handler func(selections UserSelections)) {
 	ui.createHandler = handler
 }
 
-func (ui *tviewUI) SetCancelHandler(handler func()) {
+func (ui *TviewUI) SetCancelHandler(handler func()) {
 	ui.cancelHandler = handler
 }
 
-func (ui *tviewUI) SetErrHandler(handler func(error)) {
+func (ui *TviewUI) SetErrHandler(handler func(error)) {
 	ui.errHandler = handler
 }

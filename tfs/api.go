@@ -58,7 +58,7 @@ func (a *API) CreateTask(ctx context.Context, title, description string, estimat
 	if parentID > 0 {
 		parent, err = a.WiClient.Get(ctx, parentID)
 	} else {
-		parent, err = a.findParent(ctx, parentNamePattern)
+		parent, err = a.findActiveRequirementByPattern(ctx, parentNamePattern)
 	}
 	if err != nil {
 		return nil, err
@@ -91,7 +91,20 @@ func (a *API) CreateTask(ctx context.Context, title, description string, estimat
 	return task, nil
 }
 
-func (a *API) findParent(ctx context.Context, namePattern string) (*workitemtracking.WorkItem, error) {
+func (a *API) findActiveRequirementByPattern(ctx context.Context, namePattern string) (*workitemtracking.WorkItem, error) {
+	requirement, err := a.WiClient.FindRequirement(ctx, namePattern, "")
+	if err != nil {
+		return nil, err
+	}
+
+	if requirement != nil {
+		return requirement, nil
+	}
+
+	return nil, errors.New("active requirement with name contains '" + namePattern + "' not found")
+}
+
+func (a *API) findCurrentRequirementByPattern(ctx context.Context, namePattern string) (*workitemtracking.WorkItem, error) {
 	iterations, err := work.GetIterations(ctx, a.Conn, a.project, a.team)
 	if err != nil {
 		return nil, err
@@ -100,17 +113,17 @@ func (a *API) findParent(ctx context.Context, namePattern string) (*workitemtrac
 	for i := len(*iterations) - 1; i >= 0; i-- {
 		iteration := (*iterations)[i]
 		if *iteration.Attributes.TimeFrame == "current" || *iteration.Attributes.TimeFrame == "past" {
-			userStory, err := a.WiClient.FindRequirement(ctx, namePattern, *iteration.Path)
+			requirement, err := a.WiClient.FindRequirement(ctx, namePattern, *iteration.Path)
 			if err != nil {
 				return nil, err
 			}
-			if userStory != nil {
-				return userStory, nil
+			if requirement != nil {
+				return requirement, nil
 			}
 		}
 	}
 
-	return nil, errors.New("active user story with name contains '" + namePattern + "' not found in current and previous sprints")
+	return nil, errors.New("active requirement with name contains '" + namePattern + "' not found in current and previous sprints")
 }
 
 func (a *API) CreateChildTask(ctx context.Context, title, description string, estimate float32, parent *workitemtracking.WorkItem, tags []string) (*workitemtracking.WorkItem, error) {

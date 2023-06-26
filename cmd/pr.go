@@ -59,11 +59,10 @@ var (
 		},
 	}
 
-	createPrCmdFlagProject         string
-	createPrCmdFlagMessage         string
-	createPrCmdFlagRepository      string
-	createPrCmdFlagOldUI           bool
-	createPrCmdFlagWithWorkItemIDs bool
+	createPrCmdFlagProject    string
+	createPrCmdFlagMessage    string
+	createPrCmdFlagRepository string
+	createPrCmdFlagOldUI      bool
 )
 
 func init() {
@@ -74,8 +73,7 @@ func init() {
 	createPrCmd.Flags().StringVarP(&createPrCmdFlagProject, "project", "p", "NSMS", "TFS project name")
 	createPrCmd.Flags().StringVarP(&createPrCmdFlagMessage, "message", "m", "", "Megre commit message")
 	createPrCmd.Flags().StringVarP(&createPrCmdFlagRepository, "repository", "r", "", "TFS repository name")
-	createPrCmd.Flags().BoolVarP(&createPrCmdFlagOldUI, "old-ui", "o", false, "Old UI")
-	createPrCmd.Flags().BoolVarP(&createPrCmdFlagWithWorkItemIDs, "with-wi", "w", false, "Prepend work item IDs to commit message?")
+	createPrCmd.Flags().BoolVarP(&createPrCmdFlagOldUI, "old-ui", "", false, "Old UI")
 }
 
 func getPrCommand(ctx context.Context, id int) error {
@@ -159,7 +157,7 @@ func createPrCommandInteractive(ctx context.Context, mergeMessage string) error 
 		return err
 	}
 
-	ui, err := pr.NewTviewUI(createPrCmdFlagWithWorkItemIDs)
+	ui, err := pr.NewTviewUI()
 	if err != nil {
 		return err
 	}

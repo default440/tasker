@@ -118,14 +118,19 @@ func (api *Client) FindRequirement(ctx context.Context, namePattern, iterationPa
 		return nil, errors.New("user story name pattern is empty")
 	}
 
+	var iterationFilter string
+	if iterationPath != "" {
+		iterationFilter = `AND [System.IterationPath] = '` + iterationPath + `'`
+	}
+
 	queryResult, err := api.client.QueryByWiql(ctx, workitemtracking.QueryByWiqlArgs{
 		Wiql: &workitemtracking.Wiql{
 			Query: ptr.FromStr(`
 				SELECT [Id], [Title], [System.AreaPath], [System.IterationPath]
 				FROM WorkItems
 				WHERE [Work Item Type] = 'Requirement'
-					AND [System.IterationPath] = '` + iterationPath + `'
-					AND [Title] CONTAINS '` + namePattern + `'
+					` + iterationFilter + `
+					AND [Title] CONTAINS WORDS '` + namePattern + `'
 					AND [State] = 'Active'
 			`),
 		},

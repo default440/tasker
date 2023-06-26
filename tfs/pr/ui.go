@@ -9,7 +9,7 @@ const (
 
 var (
 	ui UI = &promptkitUI{}
-	//ui UI = &promptuiUI{}
+	// ui UI = &promptuiUI{}
 	// ui UI = &ptermUI{}
 	// ui UI = &surveyUI{}
 	// ui UI = &tviewUI{}

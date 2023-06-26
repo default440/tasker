@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-const defaultBugTitleTemplate = "{{.ID}}-bugfix {{.Title}}"
+const defaultBugTitleTemplate = "BugFix {{.ID}} {{.Title}}"
 
 var bugfixCmd = &cobra.Command{
 	Use:   "bugfix <Bug ID> [Description]",
@@ -77,7 +77,7 @@ func createBugfixCommand(ctx context.Context, bugID int, description string) err
 		},
 	}
 
-	title, err := getBugTitle(bug)
+	title, err := getBugFixTaskTitle(bug)
 	if err != nil {
 		return err
 	}
@@ -90,7 +90,7 @@ func createBugfixCommand(ctx context.Context, bugID int, description string) err
 	return err
 }
 
-func getBugTitle(task *workitemtracking.WorkItem) (string, error) {
+func getBugFixTaskTitle(task *workitemtracking.WorkItem) (string, error) {
 	type bugTemplateData struct {
 		ID    int
 		Title string

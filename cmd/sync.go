@@ -160,7 +160,7 @@ func filterTasks(tasks []*wiki.Task, predicate func(*wiki.Task) bool) []*wiki.Ta
 	return filtered
 }
 
-func updateWikiPage(api *goconfluence.API, content *goconfluence.Content, tasks []*wiki.Task) error {
+func updateWikiPage(api *wiki.API, content *goconfluence.Content, tasks []*wiki.Task) error {
 	spinner, _ := pterm.DefaultSpinner.WithText("Updating wiki page...").Start()
 
 	body := content.Body.Storage.Value

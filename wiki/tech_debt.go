@@ -12,12 +12,13 @@ import (
 var (
 	tfsTaskStructuredMacroAttributes = map[string]func(value string, t *TfsTask) error{
 		"itemID": func(value string, t *TfsTask) error {
-			if parsedValue, err := strconv.Atoi(value); err == nil {
-				t.ItemID = parsedValue
-				return nil
-			} else {
+			parsedValue, err := strconv.Atoi(value)
+			if err != nil {
 				return err
 			}
+
+			t.ItemID = parsedValue
+			return nil
 		},
 	}
 )

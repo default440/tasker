@@ -37,9 +37,10 @@ var (
 	}
 
 	archiveTechCmd = &cobra.Command{
-		Use:   "archive",
-		Short: "Archive completed tech debt tasks",
-		Long:  `Move completed techical debt tasks under Archive page.`,
+		Use:     "archive",
+		Aliases: []string{"arch"},
+		Short:   "Archive completed tech debt tasks",
+		Long:    `Move completed techical debt tasks under Archive page.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			err := archiveTechCommand(cmd.Context())
 			cobra.CheckErr(err)
@@ -106,14 +107,14 @@ func syncTechCommand(ctx context.Context) error {
 	wikiParentID := int(syncTechCmdFlagWikiParentPageID)
 	requirementID := int(syncTechCmdFlagTfsRequirementID)
 
-	wikiApi, err := wiki.NewClient()
+	wikiAPI, err := wiki.NewClient()
 	if err != nil {
 		return err
 	}
 
 	var pageIDs []string
 	if wikiParentID != 0 {
-		searchResult, err := wikiApi.GetChildPages(strconv.Itoa(wikiParentID))
+		searchResult, err := wikiAPI.GetChildPages(strconv.Itoa(wikiParentID))
 		if err != nil {
 			return err
 		}
@@ -127,7 +128,7 @@ func syncTechCommand(ctx context.Context) error {
 		}
 	}
 
-	pages, err := parseTechDebtPages(ctx, pageIDs, wikiApi)
+	pages, err := parseTechDebtPages(ctx, pageIDs, wikiAPI)
 	if err != nil {
 		return err
 	}
@@ -141,12 +142,12 @@ func syncTechCommand(ctx context.Context) error {
 		return nil
 	}
 
-	tfsApi, err := tfs.NewAPI(ctx)
+	tfsAPI, err := tfs.NewAPI(ctx)
 	if err != nil {
 		return err
 	}
 
-	requirement, err := tfsApi.WiClient.Get(ctx, requirementID)
+	requirement, err := tfsAPI.WiClient.Get(ctx, requirementID)
 	if err != nil {
 		return err
 	}
@@ -171,7 +172,7 @@ func syncTechCommand(ctx context.Context) error {
 		return nil
 	}
 
-	err = createTechDebtTasks(ctx, pages, tfsApi, wikiApi, requirement)
+	err = createTechDebtTasks(ctx, pages, tfsAPI, wikiAPI, requirement)
 	if err != nil {
 		return err
 	}
@@ -179,7 +180,7 @@ func syncTechCommand(ctx context.Context) error {
 	return nil
 }
 
-func createTechDebtTasks(ctx context.Context, pages []*techDebtPage, tfsApi *tfs.API, wikiApi *goconfluence.API, requirement *workitemtracking.WorkItem) error {
+func createTechDebtTasks(ctx context.Context, pages []*techDebtPage, tfsAPI *tfs.API, wikiAPI *wiki.API, requirement *workitemtracking.WorkItem) error {
 	progressbar, err := pterm.DefaultProgressbar.WithTitle("Processing...").WithTotal(len(pages)).WithRemoveWhenDone().Start()
 	if err != nil {
 		return err
@@ -189,17 +190,17 @@ func createTechDebtTasks(ctx context.Context, pages []*techDebtPage, tfsApi *tfs
 		progressbar.UpdateTitle(fmt.Sprintf("Creating %s", cutString(page.Title, 20, true)))
 		tags := []string{"Tech", "TechBacklog", "Prime", "SMP", "Core"}
 		tags = append(tags, page.Labels...)
-		tfsTask, err := tfsApi.CreateChildTask(ctx, page.Title, page.Description, page.estimate, requirement, tags)
+		tfsTask, err := tfsAPI.CreateChildTask(ctx, page.Title, page.Description, page.estimate, requirement, tags)
 
 		if err != nil {
 			pterm.Error.Println(fmt.Sprintf("TFS Task NOT CREATED %s: %s", page.Title, err.Error()))
 		} else {
 			progressbar.UpdateTitle(fmt.Sprintf("Updating wiki page %s", cutString(page.Title, 20, true)))
 			page.AddTfsTask(*tfsTask.Id)
-			err = updateTechDebtWikiPage(wikiApi, page)
+			err = updateTechDebtWikiPage(wikiAPI, page)
 
 			if err != nil {
-				pterm.Error.Println(fmt.Sprintf("Wiki page NOT UDPATED %s: %s", page.Title, err.Error()))
+				pterm.Error.Println(fmt.Sprintf("Wiki page NOT UDPADET %s: %s", page.Title, err.Error()))
 			} else {
 				pterm.Success.Println(fmt.Sprintf("CREATED %s", page.Title))
 			}
@@ -211,7 +212,7 @@ func createTechDebtTasks(ctx context.Context, pages []*techDebtPage, tfsApi *tfs
 	return nil
 }
 
-func parseTechDebtPages(ctx context.Context, pageIDs []string, api *goconfluence.API) ([]*techDebtPage, error) {
+func parseTechDebtPages(ctx context.Context, pageIDs []string, api *wiki.API) ([]*techDebtPage, error) {
 	var pages []*techDebtPage
 	wg, _ := errgroup.WithContext(ctx)
 	var m sync.Mutex
@@ -246,7 +247,7 @@ func parseTechDebtPages(ctx context.Context, pageIDs []string, api *goconfluence
 			}
 
 			techDebt.Labels = lo.Map(labels.Labels, func(label goconfluence.Label, i int) string {
-				return label.Label
+				return label.Name
 			})
 
 			m.Lock()
@@ -269,7 +270,7 @@ func parseTechDebtPages(ctx context.Context, pageIDs []string, api *goconfluence
 	return pages, nil
 }
 
-func updateTechDebtWikiPage(api *goconfluence.API, page *techDebtPage) error {
+func updateTechDebtWikiPage(api *wiki.API, page *techDebtPage) error {
 	content := page.content
 	updatedBody, err := page.GetUpdatedBody()
 	if err != nil {
@@ -356,13 +357,13 @@ func archiveTechCommand(ctx context.Context) error {
 	wikiParentID := int(archiveTechCmdFlagWikiParentPageID)
 	wikiArchiveID := int(archiveTechCmdFlagWikiArchivePageID)
 
-	wikiApi, err := wiki.NewClient()
+	wikiAPI, err := wiki.NewClient()
 	if err != nil {
 		return err
 	}
 
 	var pageIDs []string
-	searchResult, err := wikiApi.GetChildPages(strconv.Itoa(wikiParentID))
+	searchResult, err := wikiAPI.GetChildPages(strconv.Itoa(wikiParentID))
 	if err != nil {
 		return err
 	}
@@ -371,7 +372,7 @@ func archiveTechCommand(ctx context.Context) error {
 		pageIDs = append(pageIDs, page.ID)
 	}
 
-	pages, err := parseTechDebtPages(ctx, pageIDs, wikiApi)
+	pages, err := parseTechDebtPages(ctx, pageIDs, wikiAPI)
 	if err != nil {
 		return err
 	}
@@ -381,12 +382,12 @@ func archiveTechCommand(ctx context.Context) error {
 		return nil
 	}
 
-	tfsApi, err := tfs.NewAPI(ctx)
+	tfsAPI, err := tfs.NewAPI(ctx)
 	if err != nil {
 		return err
 	}
 
-	tasks, err := getTechDebtTasks(ctx, pages, tfsApi)
+	tasks, err := getTechDebtTasks(ctx, pages, tfsAPI)
 	if err != nil {
 		return err
 	}
@@ -415,12 +416,7 @@ func archiveTechCommand(ctx context.Context) error {
 		return errors.New("canceled by user")
 	}
 
-	return archiveTechDebtPages(ctx, pages, wikiApi, strconv.Itoa(wikiArchiveID))
-}
-
-type techDebtTask struct {
-	*wiki.TfsTask
-	status bool
+	return archiveTechDebtPages(pages, wikiAPI, strconv.Itoa(wikiArchiveID))
 }
 
 func getTechDebtTasks(ctx context.Context, pages []*techDebtPage, api *tfs.API) (map[string][]*workitemtracking.WorkItem, error) {
@@ -464,7 +460,7 @@ func getTechDebtTasks(ctx context.Context, pages []*techDebtPage, api *tfs.API) 
 	return workItems, nil
 }
 
-func archiveTechDebtPages(ctx context.Context, pages []*techDebtPage, wikiApi *goconfluence.API, archivePageID string) error {
+func archiveTechDebtPages(pages []*techDebtPage, wikiAPI *wiki.API, archivePageID string) error {
 	progressbar, err := pterm.DefaultProgressbar.WithTitle("Processing...").WithTotal(len(pages)).WithRemoveWhenDone().Start()
 	if err != nil {
 		return err
@@ -472,7 +468,7 @@ func archiveTechDebtPages(ctx context.Context, pages []*techDebtPage, wikiApi *g
 
 	for _, page := range pages {
 		progressbar.UpdateTitle(fmt.Sprintf("Archiving %s", cutString(page.Title, 20, true)))
-		err = archiveTechDebtWikiPage(wikiApi, page, archivePageID)
+		err := wikiAPI.MovePage(page.content.Space.Key, page.PageID, archivePageID)
 		if err != nil {
 			pterm.Error.Println(fmt.Sprintf("NOT ARCHIVED %s: %s", page.Title, err.Error()))
 		} else {
@@ -483,31 +479,4 @@ func archiveTechDebtPages(ctx context.Context, pages []*techDebtPage, wikiApi *g
 	}
 	_, _ = progressbar.Stop()
 	return nil
-}
-
-func archiveTechDebtWikiPage(api *goconfluence.API, page *techDebtPage, archivePageID string) error {
-	content := page.content
-
-	_, err := api.UpdateContent(&goconfluence.Content{
-		ID:    content.ID,
-		Type:  content.Type,
-		Title: content.Title,
-		Ancestors: []goconfluence.Ancestor{
-			{ID: archivePageID},
-		},
-		Body: goconfluence.Body{
-			Storage: goconfluence.Storage{
-				Value:          content.Body.Storage.Value,
-				Representation: "storage",
-			},
-		},
-		Space: &goconfluence.Space{
-			Key: content.Space.Key,
-		},
-		Version: &goconfluence.Version{
-			Number: content.Version.Number + 1,
-		},
-	})
-
-	return err
 }
