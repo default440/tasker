@@ -6,6 +6,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/git"
+	"github.com/pterm/pterm"
 	"github.com/rivo/tview"
 	"golang.org/x/exp/slices"
 )
@@ -107,13 +108,31 @@ func NewTviewUI() (*TviewUI, error) {
 	})
 
 	go func() {
-		if err := app.SetRoot(grid, true).EnableMouse(true).Run(); err != nil {
+		width := 130
+		heigth := 30
+		var p tview.Primitive = grid
+		if pterm.GetTerminalWidth() > width && pterm.GetTerminalHeight() > heigth {
+			p = center(width, heigth, grid)
+		}
+
+		if err := app.SetRoot(p, true).EnableMouse(true).Run(); err != nil {
 			ui.execErrHandler(err)
 		}
 		ui.execCancelHandler()
 	}()
 
 	return &ui, nil
+}
+
+func center(width, height int, p tview.Primitive) *tview.Flex {
+	return tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().
+			SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).
+			AddItem(p, height, 1, true).
+			AddItem(nil, 0, 1, false), width, 1, true).
+		AddItem(nil, 0, 1, false)
 }
 
 func (ui *TviewUI) execErrHandler(err error) {

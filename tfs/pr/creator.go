@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"tasker/clipboard"
@@ -354,8 +355,8 @@ func (c *Creator) GetBranchCandidates(ctx context.Context) (source, target []git
 
 	branches := *result
 
-	slices.SortFunc(branches, func(a, b git.GitBranchStats) bool {
-		return *a.BehindCount < *b.BehindCount
+	sort.Slice(branches, func(a, b int) bool {
+		return *branches[a].BehindCount < *branches[b].BehindCount
 	})
 
 	sourceCandidates := filter(branches, func(branch git.GitBranchStats) bool {
@@ -408,12 +409,4 @@ func filter[T any](items []T, fn func(item T) bool) []T {
 		}
 	}
 	return filteredItems
-}
-
-func project[T any, TResult any](items []T, selector func(item T) TResult) []TResult {
-	result := []TResult{}
-	for _, item := range items {
-		result = append(result, selector(item))
-	}
-	return result
 }
