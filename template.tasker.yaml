@@ -9,3 +9,4 @@ tfsCommonUserStoryNamePattern: общие задачи
 tfsBugTitleTemplate: BUG {{.ID}} {{.Title}}
 wikiBaseAddress: https://wiki.infotecs.int
 wikiAccessToken:
+syncCmdTfsTaskMacroPath: .tasker.tfs-task-macro.xml

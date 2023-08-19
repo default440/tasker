@@ -14,7 +14,7 @@ import (
 )
 
 type Client struct {
-	client  workitemtracking.Client
+	workitemtracking.Client
 	project string
 	team    string
 }
@@ -31,9 +31,9 @@ func NewClient(ctx context.Context, conn *azuredevops.Connection, team, project 
 	}
 
 	return &Client{
-		client:  client,
-		project: project,
-		team:    team,
+		client,
+		project,
+		team,
 	}, nil
 }
 
@@ -50,7 +50,7 @@ func (api *Client) Update(ctx context.Context, taskID int, title, description st
 			Value: description,
 		},
 	}
-	_, err := api.client.UpdateWorkItem(ctx, workitemtracking.UpdateWorkItemArgs{
+	_, err := api.UpdateWorkItem(ctx, workitemtracking.UpdateWorkItemArgs{
 		Id:       ptr.FromInt(taskID),
 		Project:  &api.project,
 		Document: &fields,
@@ -60,20 +60,20 @@ func (api *Client) Update(ctx context.Context, taskID int, title, description st
 }
 
 func (api *Client) Get(ctx context.Context, workItemID int) (*workitemtracking.WorkItem, error) {
-	return api.client.GetWorkItem(ctx, workitemtracking.GetWorkItemArgs{
+	return api.GetWorkItem(ctx, workitemtracking.GetWorkItemArgs{
 		Id: ptr.FromInt(workItemID),
 	})
 }
 
 func (api *Client) GetExpanded(ctx context.Context, workItemID int) (*workitemtracking.WorkItem, error) {
-	return api.client.GetWorkItem(ctx, workitemtracking.GetWorkItemArgs{
+	return api.GetWorkItem(ctx, workitemtracking.GetWorkItemArgs{
 		Id:     ptr.FromInt(workItemID),
 		Expand: &workitemtracking.WorkItemExpandValues.All,
 	})
 }
 
 func (api *Client) Delete(ctx context.Context, workItemID int) error {
-	_, err := api.client.DeleteWorkItem(ctx, workitemtracking.DeleteWorkItemArgs{
+	_, err := api.DeleteWorkItem(ctx, workitemtracking.DeleteWorkItemArgs{
 		Project: &api.project,
 		Destroy: ptr.FromBool(true),
 		Id:      ptr.FromInt(workItemID),
@@ -87,7 +87,7 @@ func (api *Client) FindUserStory(ctx context.Context, namePattern, iterationPath
 		return nil, errors.New("user story name pattern is empty")
 	}
 
-	queryResult, err := api.client.QueryByWiql(ctx, workitemtracking.QueryByWiqlArgs{
+	queryResult, err := api.QueryByWiql(ctx, workitemtracking.QueryByWiqlArgs{
 		Wiql: &workitemtracking.Wiql{
 			Query: ptr.FromStr(`
 				SELECT [Id], [Title], [System.AreaPath], [System.IterationPath]
@@ -123,7 +123,7 @@ func (api *Client) FindRequirement(ctx context.Context, namePattern, iterationPa
 		iterationFilter = `AND [System.IterationPath] = '` + iterationPath + `'`
 	}
 
-	queryResult, err := api.client.QueryByWiql(ctx, workitemtracking.QueryByWiqlArgs{
+	queryResult, err := api.QueryByWiql(ctx, workitemtracking.QueryByWiqlArgs{
 		Wiql: &workitemtracking.Wiql{
 			Query: ptr.FromStr(`
 				SELECT [Id], [Title], [System.AreaPath], [System.IterationPath]
@@ -149,7 +149,7 @@ func (api *Client) FindRequirement(ctx context.Context, namePattern, iterationPa
 	return nil, nil
 }
 
-func (api *Client) Create(ctx context.Context, title, description, areaPath, iterationPath string, estimate float32, relations []*Relation, tags []string) (*workitemtracking.WorkItem, error) {
+func (api *Client) Create(ctx context.Context, workitemType, title, description, areaPath, iterationPath string, estimate float32, relations []*Relation, tags []string) (*workitemtracking.WorkItem, error) {
 	discipline := viper.GetString("tfsDiscipline")
 	tags = append(tags, "tasker")
 
@@ -207,8 +207,8 @@ func (api *Client) Create(ctx context.Context, title, description, areaPath, ite
 		})
 	}
 
-	task, err := api.client.CreateWorkItem(ctx, workitemtracking.CreateWorkItemArgs{
-		Type:     ptr.FromStr("Task"),
+	task, err := api.CreateWorkItem(ctx, workitemtracking.CreateWorkItemArgs{
+		Type:     ptr.From(workitemType),
 		Project:  &api.project,
 		Document: &fields,
 	})
@@ -273,7 +273,7 @@ func (api *Client) Copy(ctx context.Context, sourceWorkItem *workitemtracking.Wo
 	}
 
 	workItemType := GetType(sourceWorkItem)
-	task, err := api.client.CreateWorkItem(ctx, workitemtracking.CreateWorkItemArgs{
+	task, err := api.CreateWorkItem(ctx, workitemtracking.CreateWorkItemArgs{
 		Type:     &workItemType,
 		Project:  &api.project,
 		Document: &fields,
@@ -286,7 +286,7 @@ func (api *Client) Copy(ctx context.Context, sourceWorkItem *workitemtracking.Wo
 }
 
 func (api *Client) Assign(ctx context.Context, task *workitemtracking.WorkItem, user string) error {
-	_, err := api.client.UpdateWorkItem(ctx, workitemtracking.UpdateWorkItemArgs{
+	_, err := api.UpdateWorkItem(ctx, workitemtracking.UpdateWorkItemArgs{
 		Id:      task.Id,
 		Project: &api.project,
 		Document: &[]webapi.JsonPatchOperation{

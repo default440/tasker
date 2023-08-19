@@ -1,0 +1,12 @@
+<div class="content-wrapper">
+    <p>
+        <ac:structured-macro ac:name="work-item-tfs" ac:schema-version="1" ac:macro-id="{{.NewUUID}}">
+            <ac:parameter ac:name="itemID">{{.Task.Id}}</ac:parameter>
+            <ac:parameter ac:name="host">1</ac:parameter>
+            <ac:parameter ac:name="assigned">true</ac:parameter>
+            <ac:parameter ac:name="title">false</ac:parameter>
+            <ac:parameter ac:name="type">false</ac:parameter>
+            <ac:parameter ac:name="status">true</ac:parameter>
+        </ac:structured-macro>
+    </p>
+</div>

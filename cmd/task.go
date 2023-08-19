@@ -36,11 +36,12 @@ var (
 		},
 	}
 
-	estimate          float32
-	parentWorkItemID  uint32
-	openTaskInBrowser bool
-	tags              []string
-	unassignedTask    bool
+	createTaskCmdFlagEstimate          float32
+	createTaskCmdFlagParentWorkItemID  uint32
+	createTaskCmdFlagOpenTaskInBrowser bool
+	createTaskCmdFlagTags              []string
+	createTaskCmdFlagUnassignedTask    bool
+	createTaskCmdFlagWorkitemType      string
 )
 
 func init() {
@@ -51,11 +52,12 @@ func init() {
 	createTaskCmd.PersistentFlags().String("discipline", "", "The discipline to which the task belongs")
 	createTaskCmd.PersistentFlags().String("user", "", "The User to assign")
 
-	createTaskCmd.PersistentFlags().Float32VarP(&estimate, "estimate", "e", 0, "The original estimate of work required to complete the task (in person hours)")
-	createTaskCmd.PersistentFlags().Uint32VarP(&parentWorkItemID, "parent", "p", 0, "Id of parent User Story (if not specified looks up by according name pattern)")
-	createTaskCmd.PersistentFlags().BoolVarP(&openTaskInBrowser, "open", "o", false, "Open created task in browser?")
-	createTaskCmd.PersistentFlags().StringSliceVarP(&tags, "tag", "t", []string{}, "Tags of the task. Can be separated by comma or specified multiple times.")
-	createTaskCmd.PersistentFlags().BoolVarP(&unassignedTask, "unassigned", "u", false, "Do not assign task")
+	createTaskCmd.PersistentFlags().Float32VarP(&createTaskCmdFlagEstimate, "estimate", "e", 0, "The original estimate of work required to complete the task (in person hours)")
+	createTaskCmd.PersistentFlags().Uint32VarP(&createTaskCmdFlagParentWorkItemID, "parent", "p", 0, "Id of parent User Story (if not specified looks up by according name pattern)")
+	createTaskCmd.PersistentFlags().BoolVarP(&createTaskCmdFlagOpenTaskInBrowser, "open", "o", false, "Open created task in browser?")
+	createTaskCmd.PersistentFlags().StringSliceVarP(&createTaskCmdFlagTags, "tag", "t", []string{}, "Tags of the task. Can be separated by comma or specified multiple times.")
+	createTaskCmd.PersistentFlags().BoolVarP(&createTaskCmdFlagUnassignedTask, "unassigned", "u", false, "Do not assign task")
+	createTaskCmd.PersistentFlags().StringVarP(&createTaskCmdFlagWorkitemType, "type", "", "Task", "Type of workitem (Task, Requirement, etc.)")
 
 	cobra.CheckErr(createTaskCmd.MarkPersistentFlagRequired("estimate"))
 
@@ -78,7 +80,18 @@ func createTaskCommand(ctx context.Context, title, description string) error {
 		return err
 	}
 
-	task, err := api.CreateTask(ctx, title, description, estimate, int(parentWorkItemID), nil, tags, parentUserStoryNamePattern, !unassignedTask)
+	task, err := api.Create(
+		ctx,
+		createTaskCmdFlagWorkitemType,
+		title,
+		description,
+		createTaskCmdFlagEstimate,
+		int(createTaskCmdFlagParentWorkItemID),
+		nil,
+		createTaskCmdFlagTags,
+		parentUserStoryNamePattern,
+		!createTaskCmdFlagUnassignedTask,
+	)
 	printCreateTaskResult(task, err, spinner)
 	openInBrowser(task)
 
@@ -102,7 +115,7 @@ func printCreateTaskResult(task *workitemtracking.WorkItem, err error, spinner *
 }
 
 func openInBrowser(task *workitemtracking.WorkItem) {
-	if openTaskInBrowser && task != nil {
+	if createTaskCmdFlagOpenTaskInBrowser && task != nil {
 		href := workitem.GetURL(task)
 		_ = browser.OpenURL(href)
 	}

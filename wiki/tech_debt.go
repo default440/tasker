@@ -88,6 +88,16 @@ func getWikiPageLink(content *goconfluence.Content) string {
 	return `<div><a href="` + url + `">` + content.Title + `</a><br></div>`
 }
 
+func ParseTfsTasks(content *goconfluence.Content) ([]TfsTask, error) {
+	body := content.Body.Storage.Value
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+
+	return parseTfsTask(doc)
+}
+
 func parseTfsTask(doc *goquery.Document) ([]TfsTask, error) {
 	var parseErr error
 	var tasks []TfsTask

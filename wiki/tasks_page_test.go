@@ -18,7 +18,7 @@ func Test_ParseTasks_Page1(t *testing.T) {
 	file, err := os.ReadFile("../testdata/wiki_page_1.html")
 	assert.NoError(t, err)
 
-	tasks, err := ParseTasks(string(file))
+	tasks, err := ParseTasksTable(string(file))
 	assert.NoError(t, err)
 	assert.NotEmpty(t, tasks)
 	assert.Len(t, tasks, 6)
@@ -64,7 +64,7 @@ func Test_ParseTasks_Page2(t *testing.T) {
 	file, err := os.ReadFile("../testdata/wiki_page_2.html")
 	assert.NoError(t, err)
 
-	tasks, err := ParseTasks(string(file))
+	tasks, err := ParseTasksTable(string(file))
 	assert.NoError(t, err)
 	assert.NotEmpty(t, tasks)
 	assert.Len(t, tasks, 10)

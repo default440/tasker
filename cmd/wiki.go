@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"tasker/wiki"
 
 	"github.com/google/uuid"
@@ -75,12 +76,28 @@ If page titles used, space key required.`,
 	}
 
 	queryWikiPagesCmd = &cobra.Command{
-		Use:   "query <query>",
+		Use:   "query [query]",
 		Short: "Query wiki pages",
 		Long:  `Retrieve wiki pages by query.`,
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.RangeArgs(0, 1),
 		Run: func(cmd *cobra.Command, args []string) {
-			err := queryWikiPagesCommand(args[0])
+			var query string
+			if len(args) > 0 {
+				query = args[0]
+			}
+			err := queryWikiPagesCommand(query)
+			cobra.CheckErr(err)
+		},
+	}
+
+	workitemsFromWikiPageCmd = &cobra.Command{
+		Use:     "workitems <Page ID|Title, ...>",
+		Aliases: []string{"wi"},
+		Short:   "Extract TFS workitems",
+		Long:    `Extract TFS workitems from wiki pages.`,
+		Args:    cobra.MinimumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			err := workitemsFromWikiPageCommand(args)
 			cobra.CheckErr(err)
 		},
 	}
@@ -96,8 +113,15 @@ If page titles used, space key required.`,
 	uploadWikiContentCmdFlagHeaderLevel        uint
 	uploadWikiContentCmdFlagFixRefs            bool
 
-	queryWikiPagesCmdFlagShowContent bool
-	queryWikiPagesCmdFlagShowId      bool
+	queryWikiPagesCmdFlagSpace    string
+	queryWikiPagesCmdFlagParent   string
+	queryWikiPagesCmdFlagLabels   []string
+	queryWikiPagesCmdFlagLimit    int
+	queryWikiPagesCmdFlagLabelsOr bool
+	queryWikiPagesCmdFlagShowID   bool
+
+	workitemsFromWikiPageCmdFlagFirst bool
+	workitemsFromWikiPageCmdFlagSpace string
 )
 
 func init() {
@@ -106,10 +130,11 @@ func init() {
 	wikiCmd.AddCommand(uploadWikiContentCmd)
 	wikiCmd.AddCommand(getWikiContentCmd)
 	wikiCmd.AddCommand(queryWikiPagesCmd)
+	wikiCmd.AddCommand(workitemsFromWikiPageCmd)
 
 	moveWikiCmd.Flags().StringVarP(&moveWikiCmdFlagNewParentPage, "target", "t", "", "ID or title of target parent Wiki page")
 	moveWikiCmd.Flags().StringSliceVarP(&moveWikiCmdFlagMovingPages, "page", "p", nil, "ID or title of moving page")
-	moveWikiCmd.Flags().StringVarP(&moveWikiCmdFlagPagesSpaceKey, "space-key", "s", "", "Space Key of pages")
+	moveWikiCmd.Flags().StringVarP(&moveWikiCmdFlagPagesSpaceKey, "space", "s", "", "Space Key of pages")
 	cobra.CheckErr(moveWikiCmd.MarkFlagRequired("target"))
 
 	uploadWikiContentCmd.Flags().UintVarP(&uploadWikiContentCmdFlagTargetID, "target", "t", 0, "ID of target Wiki page")
@@ -122,8 +147,15 @@ func init() {
 	cobra.CheckErr(uploadWikiContentCmd.MarkFlagRequired("file"))
 	cobra.CheckErr(uploadWikiContentCmd.MarkFlagFilename("file"))
 
-	queryWikiPagesCmd.Flags().BoolVarP(&queryWikiPagesCmdFlagShowContent, "---content", "c", false, "Show pages content")
-	queryWikiPagesCmd.Flags().BoolVarP(&queryWikiPagesCmdFlagShowContent, "--id", "i", false, "Show pages id")
+	queryWikiPagesCmd.Flags().StringVarP(&queryWikiPagesCmdFlagSpace, "space", "s", "", "Space key")
+	queryWikiPagesCmd.Flags().StringVarP(&queryWikiPagesCmdFlagParent, "parent", "p", "", "Parent page id or title")
+	queryWikiPagesCmd.Flags().StringArrayVarP(&queryWikiPagesCmdFlagLabels, "label", "l", nil, "Page labels")
+	queryWikiPagesCmd.Flags().IntVarP(&queryWikiPagesCmdFlagLimit, "limit", "", 0, "Results limit")
+	queryWikiPagesCmd.Flags().BoolVarP(&queryWikiPagesCmdFlagLabelsOr, "lables-or", "", false, "ORing lables")
+	queryWikiPagesCmd.Flags().BoolVarP(&queryWikiPagesCmdFlagShowID, "id", "", false, "Show pages ID")
+
+	workitemsFromWikiPageCmd.Flags().BoolVarP(&workitemsFromWikiPageCmdFlagFirst, "first", "f", false, "Only first task from page")
+	workitemsFromWikiPageCmd.Flags().StringVarP(&workitemsFromWikiPageCmdFlagSpace, "space", "s", "", "Space Key of pages")
 }
 
 func moveWikiPagesCommand() error {
@@ -243,14 +275,59 @@ func queryWikiPagesCommand(query string) error {
 		return err
 	}
 
-	expand := make([]string, 0, 1)
-	if queryWikiPagesCmdFlagShowContent {
-		expand = append(expand, "body.storage")
+	if query != "" {
+		query = "(" + query + ")"
 	}
 
-	qr, err := api.Search(goconfluence.SearchQuery{
-		CQL:    query,
-		Expand: expand,
+	filterFunc := func(operator, query, filter string) string {
+		if query != "" {
+			query += " " + operator + " "
+		}
+		query += filter
+		return query
+	}
+
+	and := func(query, filter string) string { return filterFunc("AND", query, filter) }
+	or := func(query, filter string) string { return filterFunc("OR", query, filter) }
+
+	if !strings.Contains(query, "type=") {
+		query = and(query, "type=page")
+	}
+
+	if queryWikiPagesCmdFlagSpace != "" {
+		query = and(query, "space=\""+queryWikiPagesCmdFlagSpace+"\"")
+	}
+
+	if queryWikiPagesCmdFlagParent != "" {
+		parentID := queryWikiPagesCmdFlagParent
+		if _, err := strconv.Atoi(parentID); err != nil {
+			p, err := api.GetPageByTitle(queryWikiPagesCmdFlagParent, queryWikiPagesCmdFlagSpace)
+			if err != nil {
+				return err
+			}
+
+			parentID = p.ID
+		}
+
+		query = and(query, "parent="+parentID)
+	}
+
+	labelsFilter := ""
+	for _, label := range queryWikiPagesCmdFlagLabels {
+		if queryWikiPagesCmdFlagLabelsOr {
+			labelsFilter = or(labelsFilter, "label=\""+label+"\"")
+		} else {
+			labelsFilter = and(labelsFilter, "label=\""+label+"\"")
+		}
+	}
+
+	if labelsFilter != "" {
+		query = and(query, "("+labelsFilter+")")
+	}
+
+	qr, err := api.SearchContent(goconfluence.SearchQuery{
+		CQL:   query,
+		Limit: queryWikiPagesCmdFlagLimit,
 	})
 
 	if err != nil {
@@ -258,11 +335,38 @@ func queryWikiPagesCommand(query string) error {
 	}
 
 	for _, p := range qr.Results {
+		if queryWikiPagesCmdFlagShowID {
+			fmt.Printf("%v\n", p.ID)
+		} else {
+			fmt.Printf("%v\n", p.Title)
+		}
+	}
 
-		fmt.Printf("%v\n", p.Title)
+	return nil
+}
 
-		if queryWikiPagesCmdFlagShowContent {
-			fmt.Printf("%v\n", p.Body.Storage.Value)
+func workitemsFromWikiPageCommand(pages []string) error {
+	api, err := wiki.NewClient()
+	if err != nil {
+		return err
+	}
+
+	for _, page := range pages {
+		content, err := api.GetPageByTitle(page, workitemsFromWikiPageCmdFlagSpace, wiki.GetPageByTitleWithBody())
+		if err != nil {
+			return err
+		}
+
+		tasks, err := wiki.ParseTfsTasks(content)
+		if err != nil {
+			return err
+		}
+
+		for _, task := range tasks {
+			fmt.Printf("%v\n", task.ItemID)
+			if workitemsFromWikiPageCmdFlagFirst {
+				break
+			}
 		}
 	}
 

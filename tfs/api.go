@@ -20,8 +20,8 @@ var (
 type API struct {
 	WiClient *workitem.Client
 	Conn     *azuredevops.Connection
-	project  string
-	team     string
+	Project  string
+	Team     string
 }
 
 func NewAPI(ctx context.Context) (*API, error) {
@@ -37,12 +37,12 @@ func NewAPI(ctx context.Context) (*API, error) {
 	return &API{
 		WiClient: client,
 		Conn:     conn,
-		project:  project,
-		team:     team,
+		Project:  project,
+		Team:     team,
 	}, nil
 }
 
-func (a *API) CreateTask(ctx context.Context, title, description string, estimate float32, parentID int, relations []*workitem.Relation, tags []string, parentNamePattern string, assign bool) (*workitemtracking.WorkItem, error) {
+func (a *API) Create(ctx context.Context, workitemType, title, description string, estimate float32, parentID int, relations []*workitem.Relation, tags []string, parentNamePattern string, assign bool) (*workitemtracking.WorkItem, error) {
 	var err error
 	var parent *workitemtracking.WorkItem
 	var user string
@@ -76,7 +76,7 @@ func (a *API) CreateTask(ctx context.Context, title, description string, estimat
 		description = title
 	}
 
-	task, err := a.WiClient.Create(ctx, title, description, areaPath, iterationPath, estimate, relations, tags)
+	task, err := a.WiClient.Create(ctx, "Task", title, description, areaPath, iterationPath, estimate, relations, tags)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (a *API) findActiveRequirementByPattern(ctx context.Context, namePattern st
 }
 
 func (a *API) findCurrentRequirementByPattern(ctx context.Context, namePattern string) (*workitemtracking.WorkItem, error) {
-	iterations, err := work.GetIterations(ctx, a.Conn, a.project, a.team)
+	iterations, err := work.GetIterations(ctx, a.Conn, a.Project, a.Team)
 	if err != nil {
 		return nil, err
 	}
@@ -136,5 +136,5 @@ func (a *API) CreateChildTask(ctx context.Context, title, description string, es
 		},
 	}
 
-	return a.WiClient.Create(ctx, title, description, areaPath, iterationPath, estimate, relations, tags)
+	return a.WiClient.Create(ctx, "Task", title, description, areaPath, iterationPath, estimate, relations, tags)
 }

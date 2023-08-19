@@ -16,6 +16,7 @@ var (
 
 type API struct {
 	*goconfluence.API
+	endPoint *url.URL
 }
 
 func (a *API) MovePageNew(pageID, targetID uint) error {
@@ -88,18 +89,41 @@ func (a *API) GetPageByID(id string) (*goconfluence.Content, error) {
 	return p, err
 }
 
-func (a *API) GetPageByTitle(title, spaceKey string) (*goconfluence.Content, error) {
+type GetPageByTitleOptions struct {
+	ExpandBody bool
+}
+
+type GetPageByTitleOpt func(options *GetPageByTitleOptions)
+
+func GetPageByTitleWithBody() GetPageByTitleOpt {
+	return func(options *GetPageByTitleOptions) { options.ExpandBody = true }
+}
+
+func (a *API) GetPageByTitle(title, spaceKey string, opts ...GetPageByTitleOpt) (*goconfluence.Content, error) {
 	if p, ok := pagesCache[title]; ok {
 		return p, nil
+	}
+
+	options := &GetPageByTitleOptions{}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(options)
+		}
+	}
+
+	expand := []string{
+		"space",
+		"version",
+	}
+
+	if options.ExpandBody {
+		expand = append(expand, "body.storage")
 	}
 
 	sr, err := a.GetContent(goconfluence.ContentQuery{
 		SpaceKey: spaceKey,
 		Title:    title,
-		Expand: []string{
-			"space",
-			"version",
-		},
+		Expand:   expand,
 	})
 
 	if err != nil {

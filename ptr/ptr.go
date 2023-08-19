@@ -11,3 +11,7 @@ func FromInt(value int) *int {
 func FromBool(value bool) *bool {
 	return &value
 }
+
+func From[T any](value T) *T {
+	return &value
+}

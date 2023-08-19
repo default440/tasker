@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"log"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -62,6 +63,6 @@ func initConfig() {
 	// If a config file is found, read it in.
 	err := viper.ReadInConfig()
 	if err != nil {
-		_ = viper.SafeWriteConfig()
+		log.Fatalf("%v; config: %s\n", err, viper.ConfigFileUsed())
 	}
 }

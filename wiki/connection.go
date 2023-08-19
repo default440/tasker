@@ -22,6 +22,11 @@ func NewClient() (*API, error) {
 		return nil, err
 	}
 
+	ep, err := url.ParseRequestURI(apiBaseAddress)
+	if err != nil {
+		return nil, err
+	}
+
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, err
@@ -48,7 +53,8 @@ func NewClient() (*API, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &API{a}, nil
+
+	return &API{a, ep}, nil
 }
 
 func getAPIBaseAddress() (string, error) {

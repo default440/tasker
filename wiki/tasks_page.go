@@ -92,7 +92,7 @@ func (t *Task) Table() *goquery.Selection {
 	return t.tr.Parent().Parent()
 }
 
-func ParseTasks(body string) ([]*Task, error) {
+func ParseTasksTable(body string) ([]*Task, error) {
 	body = fixMarkup(body)
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(body))
 	if err != nil {

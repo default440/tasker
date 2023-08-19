@@ -1,12 +1,15 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
+	"text/template"
 	"unicode/utf8"
 
 	"tasker/tasksui"
@@ -19,6 +22,7 @@ import (
 	"github.com/pterm/pterm"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	goconfluence "github.com/virtomize/confluence-go-api"
 )
 
@@ -48,6 +52,8 @@ var (
 	syncCmdFlagTitleCustomPrefix  string
 	syncCmdFlagTags               []string
 	syncCmdFlagPartNumber         uint32
+
+	syncCmdTemplatesCache = make(map[string]*template.Template)
 )
 
 func init() {
@@ -58,7 +64,7 @@ func init() {
 	syncCmd.Flags().BoolVar(&syncCmdFlagSkipNewTasks, "update-only", false, "Do not create new tasks")
 	syncCmd.Flags().StringVar(&syncCmdFlagTitleCustomPrefix, "prefix", "", "Custom prefix for each task, ie \"Part 3. \"")
 	syncCmd.Flags().BoolVar(&syncCmdFlagNoTitleAutoPrefix, "no-auto-prefix", false, "Do not prepend each task with index prefix")
-	syncCmd.Flags().StringSliceVarP(&tags, "tag", "t", []string{}, "Tags of the task. Can be separated by comma or specified multiple times.")
+	syncCmd.Flags().StringSliceVarP(&createTaskCmdFlagTags, "tag", "t", []string{}, "Tags of the task. Can be separated by comma or specified multiple times.")
 	syncCmd.Flags().Uint32VarP(&syncCmdFlagPartNumber, "part", "p", 0, "Table number (tasks part), if tasks splitted into multiple tables (parts)")
 }
 
@@ -88,7 +94,7 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 		syncCmdFlagfeatureWorkItemID = uint32(id)
 	}
 
-	tasks, err := wiki.ParseTasks(content.Body.Storage.Value)
+	tasks, err := wiki.ParseTasksTable(content.Body.Storage.Value)
 	if err != nil {
 		return err
 	}
@@ -231,7 +237,7 @@ func createTasks(ctx context.Context, featureID int, tasks []*wiki.Task) error {
 			tfsTask, err := a.CreateChildTask(ctx, t.Title, t.Description, t.Estimate, feature, syncCmdFlagTags)
 			if err == nil {
 				pterm.Success.Println(fmt.Sprintf("CREATED %s", t.Title))
-				t.Update(createTfsTaskMacros(tfsTask))
+				t.Update(createTfsTaskMacro(tfsTask))
 			} else {
 				pterm.Error.Println(fmt.Sprintf("NOT CREATED %s: %s", t.Title, err.Error()))
 			}
@@ -244,7 +250,39 @@ func createTasks(ctx context.Context, featureID int, tasks []*wiki.Task) error {
 	return nil
 }
 
-func createTfsTaskMacros(task *workitemtracking.WorkItem) string {
+type syncCmdTfsTaskMacroTemplateData struct {
+	Task *workitemtracking.WorkItem
+}
+
+func (t syncCmdTfsTaskMacroTemplateData) NewUUID() string {
+	return uuid.NewString()
+}
+
+func createTfsTaskMacro(task *workitemtracking.WorkItem) string {
+	tfsTaskMacroPath := viper.GetString("syncCmdTfsTaskMacroPath")
+
+	if strings.TrimSpace(tfsTaskMacroPath) != "" {
+		t, ok := syncCmdTemplatesCache[tfsTaskMacroPath]
+		if !ok {
+			var err error
+			t, err = template.New("sync cmd tfs task macro template").ParseFiles(tfsTaskMacroPath)
+			if err != nil {
+				log.Fatalf("%v\n", err)
+			}
+			syncCmdTemplatesCache[tfsTaskMacroPath] = t
+		}
+
+		var result bytes.Buffer
+		err := t.ExecuteTemplate(&result, t.Templates()[0].Name(), syncCmdTfsTaskMacroTemplateData{
+			Task: task,
+		})
+		if err != nil {
+			log.Fatalf("%v\n", err)
+		}
+
+		return result.String()
+	}
+
 	return `<div class="content-wrapper">
 			<p>
 				<ac:structured-macro ac:name="work-item-tfs" ac:schema-version="1" ac:macro-id="` + uuid.NewString() + `">

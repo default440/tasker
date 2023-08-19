@@ -2,13 +2,18 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"strconv"
+	"strings"
 
 	"tasker/prettyprint"
+	"tasker/ptr"
 	"tasker/tfs"
 	"tasker/tfs/workitem"
 
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/workitemtracking"
 	"github.com/pterm/pterm"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 )
 
@@ -55,19 +60,47 @@ var (
 		},
 	}
 
+	queryWorkItemCmd = &cobra.Command{
+		Use:   "query [title pattern]",
+		Short: "Query work items",
+		Long:  "Query work items by WIQL query.",
+		Args:  cobra.RangeArgs(0, 1),
+		Run: func(cmd *cobra.Command, args []string) {
+			titlePattrern := ""
+			if len(args) > 0 {
+				titlePattrern = args[0]
+			}
+			err := queryWorkItemCommand(cmd.Context(), titlePattrern)
+			cobra.CheckErr(err)
+		},
+	}
+
 	copyWorkItemCmdParentID      int
 	copyWorkItemCmdIterationPath string
 	copyWorkItemCmdAreaPath      string
+
+	queryWorkItemCmdFlagParent string
+	queryWorkItemCmdFlagType   string
+	queryWorkItemCmdFlagStates []string
+	queryWorkItemCmdFlagActive bool
+	queryWorkItemCmdFlagTags   []string
 )
 
 func init() {
 	rootCmd.AddCommand(getWorkItemCmd)
 	rootCmd.AddCommand(deleteWorkItemCmd)
 	rootCmd.AddCommand(copyWorkItemCmd)
+	rootCmd.AddCommand(queryWorkItemCmd)
 
 	copyWorkItemCmd.Flags().IntVarP(&copyWorkItemCmdParentID, "parent", "p", 0, "Id of parent of new Work Item (if specified, then source added as AffectedBy)")
 	copyWorkItemCmd.Flags().StringVarP(&copyWorkItemCmdIterationPath, "iteration", "i", "", "Iteration Path of new Work Item")
 	copyWorkItemCmd.Flags().StringVarP(&copyWorkItemCmdIterationPath, "area", "a", "", "Area Path of new Work Item")
+
+	queryWorkItemCmd.Flags().StringVarP(&queryWorkItemCmdFlagParent, "parent", "p", "", "Work items child of specified work item")
+	queryWorkItemCmd.Flags().StringVarP(&queryWorkItemCmdFlagType, "type", "t", "", "Work items specified type")
+	queryWorkItemCmd.Flags().StringSliceVarP(&queryWorkItemCmdFlagStates, "state", "s", nil, "Work items in specified states")
+	queryWorkItemCmd.Flags().BoolVarP(&queryWorkItemCmdFlagActive, "active", "a", false, "Work items in active state")
+	queryWorkItemCmd.Flags().StringSliceVarP(&queryWorkItemCmdFlagTags, "tag", "", nil, "Work items tag")
 }
 func copyWorkItemCommand(ctx context.Context, sourceWorkItemID int) error {
 	spinner, _ := pterm.DefaultSpinner.Start()
@@ -138,6 +171,97 @@ func getWorkItemCommand(ctx context.Context, workItemID int) error {
 	}
 
 	prettyprint.JSONObject(workItem)
+
+	return nil
+}
+
+func queryWorkItemCommand(ctx context.Context, titlePattern string) error {
+	a, err := tfs.NewAPI(ctx)
+	if err != nil {
+		return err
+	}
+
+	var workItems []int
+
+	if queryWorkItemCmdFlagParent != "" {
+		childsWiql := `
+			SELECT
+				[System.Id]
+			FROM WorkItemLinks
+			WHERE 
+				([System.Links.LinkType] = 'System.LinkTypes.Hierarchy-Reverse')
+				AND ([Target].[System.Id] = ` + queryWorkItemCmdFlagParent + `)
+		`
+
+		childsResult, err := a.WiClient.QueryByWiql(ctx, workitemtracking.QueryByWiqlArgs{
+			Wiql: &workitemtracking.Wiql{
+				Query: ptr.FromStr(childsWiql),
+			},
+			Project: &a.Project,
+			Team:    &a.Team,
+		})
+
+		if err != nil {
+			return err
+		}
+
+		workItems = lo.Map(*childsResult.WorkItemRelations, func(wi workitemtracking.WorkItemLink, _ int) int {
+			return *wi.Target.Id
+		})
+
+		if len(workItems) == 0 {
+			return nil
+		}
+	}
+
+	var filters []string
+	if titlePattern != "" {
+		filters = append(filters, "[Title] CONTAINS '"+titlePattern+"'")
+	}
+
+	if queryWorkItemCmdFlagActive {
+		filters = append(filters, "[State] = 'Active'")
+	}
+
+	if queryWorkItemCmdFlagType != "" {
+		filters = append(filters, "[Work Item Type] = '"+queryWorkItemCmdFlagType+"'")
+	}
+
+	var statesFilters []string
+	for _, state := range queryWorkItemCmdFlagStates {
+		statesFilters = append(statesFilters, "[State] = '"+state+"'")
+	}
+	if len(statesFilters) > 0 {
+		filters = append(filters, "("+strings.Join(statesFilters, " AND ")+")")
+	}
+
+	if len(workItems) > 0 {
+		filters = append(filters, "[Id] IN ("+strings.Join(lo.Map(workItems, func(id int, _ int) string { return strconv.Itoa(id) }), ",")+")")
+	}
+
+	if len(filters) > 0 {
+		wiql := "SELECT [Id] FROM WorkItems WHERE " + strings.Join(filters, " AND ")
+
+		result, err := a.WiClient.QueryByWiql(ctx, workitemtracking.QueryByWiqlArgs{
+			Wiql: &workitemtracking.Wiql{
+				Query: ptr.FromStr(wiql),
+			},
+			Project: &a.Project,
+			Team:    &a.Team,
+		})
+
+		if err != nil {
+			return err
+		}
+
+		workItems = lo.Map(*result.WorkItems, func(wi workitemtracking.WorkItemReference, _ int) int {
+			return *wi.Id
+		})
+	}
+
+	for _, id := range workItems {
+		fmt.Printf("%v\n", id)
+	}
 
 	return nil
 }
