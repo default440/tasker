@@ -199,7 +199,12 @@ func createPrCommandInteractive(ctx context.Context, mergeMessage string) error 
 		ui.SetMergeMessage(mergeMessage)
 	} else {
 		ui.SetTargetBranchChangeHandler(func(targetBranch git.GitBranchStats) {
-			mergeMessage = creator.SuggestMergeMessage(&targetBranch)
+			mergeMessage, err = creator.SuggestMergeMessage(ctx, &targetBranch)
+			if err != nil {
+				errChan <- err
+				return
+			}
+
 			ui.SetMergeMessage(mergeMessage)
 		})
 	}
@@ -213,7 +218,7 @@ func createPrCommandInteractive(ctx context.Context, mergeMessage string) error 
 	ui.SetCreateHandler(func(s pr.UserSelections) {
 		err := validator.Struct(s)
 		if err != nil {
-			errChan <- err
+			ui.SetError(err.Error())
 			return
 		}
 

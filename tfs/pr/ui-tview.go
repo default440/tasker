@@ -22,11 +22,14 @@ type TviewUI struct {
 	repositories []string
 
 	app                  *tview.Application
+	grid                 *tview.Grid
 	repositoriesDropDown *tview.DropDown
 	sourceBranchDropDown *tview.DropDown
 	targetBranchDropDown *tview.DropDown
 	workItemsInput       *tview.InputField
 	mergeMessageInput    *tview.TextArea
+	errorTextView        *tview.TextView
+	helpTextView         *tview.TextView
 
 	sourceBranch    git.GitBranchStats
 	targetBranch    git.GitBranchStats
@@ -47,13 +50,15 @@ func NewTviewUI() (*TviewUI, error) {
 
 	grid := tview.NewGrid()
 	grid.SetRows(0, 1)
-	grid.AddItem(tview.NewTextView().SetText(" Press Ctrl+S for save, press Ctrl+C or ESC to exit"), 1, 0, 1, 1, 0, 0, false)
+	ui.helpTextView = tview.NewTextView().SetText(" Press Ctrl+S for save, press Ctrl+C or ESC to exit")
+	grid.AddItem(ui.helpTextView, 1, 0, 1, 1, 0, 0, false)
 
 	form := tview.NewForm()
 	form.SetBorder(true)
 	grid.AddItem(form, 0, 0, 1, 1, 0, 0, true)
 
 	ui.app = app
+	ui.grid = grid
 	ui.repositoriesDropDown = tview.NewDropDown().SetLabel("Repository")
 	ui.sourceBranchDropDown = tview.NewDropDown().SetLabel("Source branch")
 	ui.targetBranchDropDown = tview.NewDropDown().SetLabel("Target branch")
@@ -94,13 +99,12 @@ func NewTviewUI() (*TviewUI, error) {
 	form.AddButton("Cancel", func() {
 		ui.execCancelHandler()
 	})
-	form.SetFocus(form.GetFormItemCount())
 
 	app.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
 		switch ev.Key() {
 		case tcell.KeyCtrlS:
 			ui.execCreateHandler()
-		case tcell.KeyEsc:
+		case tcell.KeyCtrlC:
 			ui.execCancelHandler()
 		}
 
@@ -131,8 +135,8 @@ func center(width, height int, p tview.Primitive) *tview.Flex {
 			SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
 			AddItem(p, height, 1, true).
-			AddItem(nil, 0, 1, false), width, 1, true).
-		AddItem(nil, 0, 1, false)
+			AddItem(tview.NewBox(), 0, 1, false), width, 1, true).
+		AddItem(tview.NewBox(), 0, 1, false)
 }
 
 func (ui *TviewUI) execErrHandler(err error) {
@@ -183,6 +187,18 @@ func (ui *TviewUI) SetRepositories(repositories []string) {
 	}
 
 	ui.app.Draw()
+}
+
+func (ui *TviewUI) SetError(error string) {
+	if ui.errorTextView == nil {
+		ui.errorTextView = tview.NewTextView()
+		ui.errorTextView.SetBackgroundColor(tcell.ColorOrangeRed)
+		ui.grid.SetRows(0, 1, 1)
+		ui.grid.AddItem(ui.errorTextView, 1, 0, 1, 1, 0, 0, false)
+		ui.grid.AddItem(ui.helpTextView, 2, 0, 1, 1, 0, 0, false)
+	}
+
+	ui.errorTextView.SetText(" " + error)
 }
 
 func (ui *TviewUI) SetRepository(repository string) {

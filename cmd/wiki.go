@@ -54,6 +54,37 @@ If page titles used, space key required.`,
 		},
 	}
 
+	copyWikiCmd = &cobra.Command{
+		Use:   "copy <Page ID|Title, ...>",
+		Short: "Copy wiki pages",
+		Long: `Create copy of wiki pages under new parent.
+If page titles used, space key required.`,
+		Args: cobra.ArbitraryArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			copyWikiCmdFlagMovingPages = append(copyWikiCmdFlagMovingPages, args...)
+
+			if copyWikiCmdFlagPagesSpaceKey == "" {
+				if _, err := strconv.Atoi(copyWikiCmdFlagNewParentPage); err != nil {
+					cobra.CheckErr(errors.New("space key required when page titles used"))
+					return
+				}
+
+				pageIDsCount := lo.CountBy(copyWikiCmdFlagMovingPages, func(page string) bool {
+					_, err := strconv.Atoi(page)
+					return err == nil
+				})
+
+				if pageIDsCount != len(copyWikiCmdFlagMovingPages) {
+					cobra.CheckErr(errors.New("space key required when page titles used"))
+					return
+				}
+			}
+
+			err := copyWikiPagesCommand()
+			cobra.CheckErr(err)
+		},
+	}
+
 	uploadWikiContentCmd = &cobra.Command{
 		Use:   "upload",
 		Short: "Upload wiki page content",
@@ -106,12 +137,18 @@ If page titles used, space key required.`,
 	moveWikiCmdFlagMovingPages   []string
 	moveWikiCmdFlagPagesSpaceKey string
 
+	copyWikiCmdFlagNewParentPage string
+	copyWikiCmdFlagMovingPages   []string
+	copyWikiCmdFlagPagesSpaceKey string
+
 	uploadWikiContentCmdFlagTargetID           uint
 	uploadWikiContentCmdFlagSourcePath         string
 	uploadWikiContentCmdFlagContentType        string
 	uploadWikiContentCmdFlagAddTableOfContents bool
 	uploadWikiContentCmdFlagHeaderLevel        uint
 	uploadWikiContentCmdFlagFixRefs            bool
+
+	getWikiContentCmdFlagContentType string
 
 	queryWikiPagesCmdFlagSpace    string
 	queryWikiPagesCmdFlagParent   string
@@ -131,6 +168,7 @@ func init() {
 	wikiCmd.AddCommand(getWikiContentCmd)
 	wikiCmd.AddCommand(queryWikiPagesCmd)
 	wikiCmd.AddCommand(workitemsFromWikiPageCmd)
+	wikiCmd.AddCommand(copyWikiCmd)
 
 	moveWikiCmd.Flags().StringVarP(&moveWikiCmdFlagNewParentPage, "target", "t", "", "ID or title of target parent Wiki page")
 	moveWikiCmd.Flags().StringSliceVarP(&moveWikiCmdFlagMovingPages, "page", "p", nil, "ID or title of moving page")
@@ -147,6 +185,8 @@ func init() {
 	cobra.CheckErr(uploadWikiContentCmd.MarkFlagRequired("file"))
 	cobra.CheckErr(uploadWikiContentCmd.MarkFlagFilename("file"))
 
+	getWikiContentCmd.Flags().StringVarP(&getWikiContentCmdFlagContentType, "type", "", "wiki", "Content type (wiki, storage, editor, md, etc.)")
+
 	queryWikiPagesCmd.Flags().StringVarP(&queryWikiPagesCmdFlagSpace, "space", "s", "", "Space key")
 	queryWikiPagesCmd.Flags().StringVarP(&queryWikiPagesCmdFlagParent, "parent", "p", "", "Parent page id or title")
 	queryWikiPagesCmd.Flags().StringArrayVarP(&queryWikiPagesCmdFlagLabels, "label", "l", nil, "Page labels")
@@ -156,6 +196,11 @@ func init() {
 
 	workitemsFromWikiPageCmd.Flags().BoolVarP(&workitemsFromWikiPageCmdFlagFirst, "first", "f", false, "Only first task from page")
 	workitemsFromWikiPageCmd.Flags().StringVarP(&workitemsFromWikiPageCmdFlagSpace, "space", "s", "", "Space Key of pages")
+
+	copyWikiCmd.Flags().StringVarP(&copyWikiCmdFlagNewParentPage, "target", "t", "", "ID or title of target parent Wiki page")
+	copyWikiCmd.Flags().StringSliceVarP(&copyWikiCmdFlagMovingPages, "page", "p", nil, "ID or title of moving page")
+	copyWikiCmd.Flags().StringVarP(&copyWikiCmdFlagPagesSpaceKey, "space", "s", "", "Space Key of pages")
+	cobra.CheckErr(copyWikiCmd.MarkFlagRequired("target"))
 }
 
 func moveWikiPagesCommand() error {
@@ -177,6 +222,33 @@ func moveWikiPagesCommand() error {
 			pterm.Error.Println(fmt.Sprintf("NOT MOVED %v: %s", page, err.Error()))
 		} else {
 			pterm.Success.Println(fmt.Sprintf("MOVED %v", page))
+		}
+	}
+
+	_, _ = progressbar.Stop()
+
+	return err
+}
+
+func copyWikiPagesCommand() error {
+	api, err := wiki.NewClient()
+	if err != nil {
+		return err
+	}
+
+	progressbar, err := pterm.DefaultProgressbar.WithTitle("Processing...").WithTotal(len(copyWikiCmdFlagMovingPages)).WithRemoveWhenDone().Start()
+	if err != nil {
+		return err
+	}
+
+	for _, page := range copyWikiCmdFlagMovingPages {
+		progressbar.UpdateTitle(fmt.Sprintf("Copying... %v", page))
+
+		err := api.CopyPage(copyWikiCmdFlagPagesSpaceKey, page, copyWikiCmdFlagNewParentPage)
+		if err != nil {
+			pterm.Error.Println(fmt.Sprintf("NOT COPIED %v: %s", page, err.Error()))
+		} else {
+			pterm.Success.Println(fmt.Sprintf("COPIED %v", page))
 		}
 	}
 
@@ -240,19 +312,30 @@ func getWikiPageContentCommand(pageID string) error {
 		return err
 	}
 
+	expand := []string{
+		"space",
+		"version",
+	}
+
+	if getWikiContentCmdFlagContentType != "" {
+		expand = append(expand, "body."+getWikiContentCmdFlagContentType)
+	} else {
+		expand = append(expand, "body.storage")
+	}
+
 	p, err := api.GetContentByID(pageID, goconfluence.ContentQuery{
-		Expand: []string{
-			"body.storage",
-			"space",
-			"version",
-		},
+		Expand: expand,
 	})
 
 	if err != nil {
 		return err
 	}
 
-	println(p.Body.Storage.Value)
+	if p.Body.View != nil && p.Body.View.Value != "" {
+		println(p.Body.View.Value)
+	} else {
+		println(p.Body.Storage.Value)
+	}
 
 	labels, err := api.GetLabels(pageID)
 	if err != nil {

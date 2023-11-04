@@ -1,11 +1,14 @@
 package wiki
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	goconfluence "github.com/virtomize/confluence-go-api"
 )
@@ -17,6 +20,42 @@ var (
 type API struct {
 	*goconfluence.API
 	endPoint *url.URL
+}
+
+// SendContentRequest sends content related requests
+// this function is used for getting, updating and deleting content
+func (a *API) SendAnyContentRequest(ep *url.URL, method string, c any) (*goconfluence.Content, error) {
+	var body io.Reader
+	if c != nil {
+		js, err := json.Marshal(c)
+		if err != nil {
+			return nil, err
+		}
+		body = strings.NewReader(string(js))
+	}
+
+	req, err := http.NewRequest(method, ep.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	if body != nil {
+		req.Header.Add("Content-Type", "application/json")
+	}
+
+	res, err := a.Request(req)
+	if err != nil {
+		return nil, err
+	}
+
+	var content goconfluence.Content
+	if len(res) != 0 {
+		err = json.Unmarshal(res, &content)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &content, nil
 }
 
 func (a *API) MovePageNew(pageID, targetID uint) error {
@@ -170,6 +209,82 @@ func (a *API) UploadContent(targetPageID uint, content string, contentType strin
 	})
 
 	return err
+}
+
+func (a *API) CopyPage(spaceKey, pageTitleOrID, targetPageTitleOrID string) error {
+	var pageID, targetPageID string
+	var page, targetPage *goconfluence.Content
+	var err error
+
+	if pageTitleOrID == "" {
+		return errors.New("copying page id or title invalid")
+	}
+
+	if targetPageTitleOrID == "" {
+		return errors.New("target page id or title invalid")
+	}
+
+	if isID(pageTitleOrID) {
+		pageID = pageTitleOrID
+
+		page, err = a.GetPageByID(pageTitleOrID)
+		if err != nil {
+			return err
+		}
+	} else {
+		page, err = a.GetPageByTitle(pageTitleOrID, spaceKey)
+		if err != nil {
+			return err
+		}
+
+		pageID = page.ID
+	}
+
+	if isID(targetPageTitleOrID) {
+		targetPageID = targetPageTitleOrID
+	} else {
+		targetPage, err = a.GetPageByTitle(targetPageTitleOrID, spaceKey)
+		if err != nil {
+			return err
+		}
+		targetPageID = targetPage.ID
+	}
+
+	type Destination struct {
+		Type  string `json:"type"`
+		Value string `json:"value"`
+	}
+	type Request struct {
+		CopyAttachments    bool        `json:"copyAttachments,omitempty"`
+		CopyPermissions    bool        `json:"copyPermissions,omitempty"`
+		CopyProperties     bool        `json:"copyProperties,omitempty"`
+		CopyLabels         bool        `json:"copyLabels,omitempty"`
+		CopyCustomContents bool        `json:"copyCustomContents,omitempty"`
+		PageTitle          string      `json:"pageTitle,omitempty"`
+		Destination        Destination `json:"destination"`
+	}
+
+	endpoint, err := getContentCopyEndpoint(pageID)
+	if err != nil {
+		return err
+	}
+
+	req := Request{
+		CopyAttachments: true,
+		CopyProperties:  true,
+		Destination: Destination{
+			Type:  "parent_page",
+			Value: targetPageID,
+		},
+		PageTitle: "Copy " + page.Title,
+	}
+
+	_, err = a.SendAnyContentRequest(endpoint, "POST", req)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (a *API) MovePage(spaceKey, pageTitleOrID, targetPageTitleOrID string) error {

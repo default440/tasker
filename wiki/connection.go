@@ -80,6 +80,14 @@ func getPageMoveEndpoint() (*url.URL, error) {
 	return url.ParseRequestURI(baseAddress + "/pages/movepage.action")
 }
 
+func getContentCopyEndpoint(pageID string) (*url.URL, error) {
+	endpoint, err := getAPIBaseAddress()
+	if err != nil {
+		return nil, err
+	}
+	return url.ParseRequestURI(endpoint + "/content/" + pageID + "/copy")
+}
+
 func joinURL(base, relPath string) (string, error) {
 	u, err := url.Parse(base)
 	if err != nil {

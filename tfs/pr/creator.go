@@ -62,7 +62,10 @@ func (c *Creator) Create(ctx context.Context, message string) (*git.GitPullReque
 	}
 
 	if message == "" {
-		message = c.SuggestMergeMessage(targetBranch)
+		message, err = c.SuggestMergeMessage(ctx, targetBranch)
+		if err != nil {
+			return nil, err
+		}
 	}
 	message, err = ui.RequestUserTextInput("Merge commit message", message)
 	if err != nil {
@@ -135,15 +138,29 @@ func (c *Creator) CollectWorkItems(sourceBranch *git.GitBranchStats, mergeMessag
 	return workItems
 }
 
-func (c *Creator) SuggestMergeMessage(targetBranch *git.GitBranchStats) string {
+func (c *Creator) SuggestMergeMessage(ctx context.Context, targetBranch *git.GitBranchStats) (string, error) {
 	if initialPrBranchCommit, found := getInitialPrBranchCommit(c.userCommits, targetBranch); found {
-		return *initialPrBranchCommit.Comment
+		return c.GetFullCommitMessage(ctx, initialPrBranchCommit)
 	}
 
 	if lastCommit, ok := c.getLastCommit(); ok {
-		return *lastCommit.Comment
+		return c.GetFullCommitMessage(ctx, lastCommit)
 	}
-	return ""
+	return "", nil
+}
+
+func (c *Creator) GetFullCommitMessage(ctx context.Context, commitRef *git.GitCommitRef) (string, error) {
+	commit, err := c.Client.GetCommit(ctx, git.GetCommitArgs{
+		RepositoryId: c.RepositoryID,
+		Project:      c.Project,
+		CommitId:     commitRef.CommitId,
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return *commit.Comment, nil
 }
 
 func copyToClipboard(pr *git.GitPullRequest) error {
