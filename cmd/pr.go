@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"tasker/prettyprint"
 	"tasker/ptr"
@@ -127,7 +128,7 @@ func createPrCommand(ctx context.Context, message string) error {
 		message = createPrCmdFlagMessage
 	}
 
-	pullrequest, err := creator.Create(ctx, message)
+	pullrequest, err := creator.Create(ctx, message, "")
 
 	if pullrequest != nil {
 		url := pr.GetPullRequestURL(pullrequest)
@@ -222,13 +223,20 @@ func createPrCommandInteractive(ctx context.Context, mergeMessage string) error 
 			return
 		}
 
-		// errChan <- errors.New(prettyprint.JSONObjectToColorString(s))
-		mergeMessage := s.MergeMessage
-		if s.WithWorkItemIDs {
-			mergeMessage = prependWorkItemIDs(mergeMessage, s.WorkItems)
+		messageParts := strings.SplitN(s.MergeMessage, "\n\n", 2)
+		message, description := messageParts[0], ""
+		if len(messageParts) > 1 {
+			description = messageParts[1]
 		}
 
-		pullrequest, err := creator.CreatePullRequest(ctx, s.SourceBranch, s.TargetBranch, mergeMessage, s.WorkItems, s.Squash)
+		if s.WithWorkItemIDs {
+			message = prependWorkItemIDs(message, s.WorkItems)
+			if description != "" {
+				description = prependWorkItemIDs("\n"+description, s.WorkItems)
+			}
+		}
+
+		pullrequest, err := creator.CreatePullRequest(ctx, s.SourceBranch, s.TargetBranch, message, description, s.WorkItems, s.Squash)
 		if pullrequest != nil {
 			url := pr.GetPullRequestURL(pullrequest)
 			ui.Stop()
@@ -250,9 +258,9 @@ func createPrCommandInteractive(ctx context.Context, mergeMessage string) error 
 	return <-errChan
 }
 
-func prependWorkItemIDs(mergeMessage string, workItemIDs []string) string {
+func prependWorkItemIDs(message string, workItemIDs []string) string {
 	for _, wi := range workItemIDs {
-		mergeMessage = fmt.Sprintf("#%s %s", wi, mergeMessage)
+		message = fmt.Sprintf("#%s %s", wi, message)
 	}
-	return mergeMessage
+	return message
 }

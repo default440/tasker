@@ -3,8 +3,8 @@ package pr
 import "github.com/microsoft/azure-devops-go-api/azuredevops/v6/git"
 
 const (
-	workItemsRegexp      = `^(\s*\d{5}\s*[,]?\s*)*$`
-	workItemsInputRegexp = `^(\s*\d{5}\s*,\s*)*(\s*\d{1,5}\s*[,]?\s*)?$`
+	workItemsRegexp      = `^(\s*\d{5,6}\s*[,]?\s*)*$`
+	workItemsInputRegexp = `^(\s*\d{5,6}\s*,\s*)*(\s*\d{1,6}\s*[,]?\s*)?$`
 )
 
 var (

@@ -55,7 +55,7 @@ func NewCreator(ctx context.Context, client *Client, repository, project string)
 	return &c, nil
 }
 
-func (c *Creator) Create(ctx context.Context, message string) (*git.GitPullRequest, error) {
+func (c *Creator) Create(ctx context.Context, message, description string) (*git.GitPullRequest, error) {
 	sourceBranch, targetBranch, err := c.getSourceTargetBranches(ctx)
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func (c *Creator) Create(ctx context.Context, message string) (*git.GitPullReque
 		return nil, ErrAborted
 	}
 
-	pr, err := c.CreatePullRequest(ctx, sourceBranch, targetBranch, message, workItems, squash)
+	pr, err := c.CreatePullRequest(ctx, sourceBranch, targetBranch, message, description, workItems, squash)
 	if err != nil {
 		return pr, err
 	}
@@ -100,13 +100,14 @@ func (c *Creator) Create(ctx context.Context, message string) (*git.GitPullReque
 	return pr, nil
 }
 
-func (c *Creator) CreatePullRequest(ctx context.Context, sourceBranch *git.GitBranchStats, targetBranch *git.GitBranchStats, message string, workItems []string, squash bool) (*git.GitPullRequest, error) {
+func (c *Creator) CreatePullRequest(ctx context.Context, sourceBranch *git.GitBranchStats, targetBranch *git.GitBranchStats, message, description string, workItems []string, squash bool) (*git.GitPullRequest, error) {
 	prArgs := CreatePrArgs(
 		*c.Project,
 		*c.RepositoryID,
 		*sourceBranch.Name,
 		*targetBranch.Name,
 		message,
+		description,
 		workItems,
 	)
 
@@ -292,7 +293,7 @@ func getWorkItems(commit *git.GitCommitRef) []string {
 	return items
 }
 
-func CreatePrArgs(project, repository, sourceBranch, targetBranch, message string, workItems []string) *git.CreatePullRequestArgs {
+func CreatePrArgs(project, repository, sourceBranch, targetBranch, message, description string, workItems []string) *git.CreatePullRequestArgs {
 	pr := &git.CreatePullRequestArgs{
 		RepositoryId: &repository,
 		Project:      &project,
@@ -300,7 +301,7 @@ func CreatePrArgs(project, repository, sourceBranch, targetBranch, message strin
 			SourceRefName: ptr.FromStr("refs/heads/" + sourceBranch),
 			TargetRefName: ptr.FromStr("refs/heads/" + targetBranch),
 			Title:         &message,
-			Description:   &message,
+			Description:   &description,
 			CompletionOptions: &git.GitPullRequestCompletionOptions{
 				MergeCommitMessage: &message,
 			},
