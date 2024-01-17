@@ -76,7 +76,7 @@ func (a *API) Create(ctx context.Context, workitemType, title, description strin
 		description = title
 	}
 
-	task, err := a.WiClient.Create(ctx, "Task", title, description, areaPath, iterationPath, estimate, relations, tags)
+	task, err := a.WiClient.CreateTask(ctx, title, description, areaPath, iterationPath, estimate, relations, tags)
 	if err != nil {
 		return nil, err
 	}
@@ -136,5 +136,18 @@ func (a *API) CreateChildTask(ctx context.Context, title, description string, es
 		},
 	}
 
-	return a.WiClient.Create(ctx, "Task", title, description, areaPath, iterationPath, estimate, relations, tags)
+	return a.WiClient.CreateTask(ctx, title, description, areaPath, iterationPath, estimate, relations, tags)
+}
+
+func (a *API) CreateChildRequirement(ctx context.Context, requirementType, title, description string, estimate float32, parent *workitemtracking.WorkItem, tags []string) (*workitemtracking.WorkItem, error) {
+	iterationPath := workitem.GetIterationPath(parent)
+	areaPath := workitem.GetAreaPath(parent)
+	relations := []*workitem.Relation{
+		{
+			URL:  *parent.Url,
+			Type: "System.LinkTypes.Hierarchy-Reverse",
+		},
+	}
+
+	return a.WiClient.CreateRequirement(ctx, requirementType, title, description, areaPath, iterationPath, estimate, relations, tags)
 }

@@ -50,6 +50,10 @@ var (
 	syncTechCmdFlagTfsRequirementID    uint
 	syncTechCmdFlagWikiParentPageID    uint
 	syncTechCmdFlagWikiTechDebtPageIDs []uint
+	syncTechCmdFlagTfsWorkItemType     string
+	syncTechCmdFlagForceCreate         bool
+	syncTechCmdFlagTfsWorkItemPrefix   string
+	syncTechCmdFlagTfsEstimate         uint
 
 	archiveTechCmdFlagWikiParentPageID  uint
 	archiveTechCmdFlagWikiArchivePageID uint
@@ -60,9 +64,13 @@ func init() {
 	techCmd.AddCommand(syncTechCmd)
 	techCmd.AddCommand(archiveTechCmd)
 
-	syncTechCmd.Flags().UintVarP(&syncTechCmdFlagTfsRequirementID, "requirement", "r", 0, "ID of TFS requirement work item for Tech Debt tasks")
-	syncTechCmd.Flags().UintVarP(&syncTechCmdFlagWikiParentPageID, "parent-page", "p", 0, "ID of Wiki parent page with Tech Debt tasks")
-	syncTechCmd.Flags().UintSliceVarP(&syncTechCmdFlagWikiTechDebtPageIDs, "debt-page", "d", []uint{}, "ID of Wiki page with Tech Debt task")
+	syncTechCmd.Flags().UintVarP(&syncTechCmdFlagTfsRequirementID, "requirement", "r", 0, "The ID of Parent TFS requirement/feature work item for Tech Debt tasks")
+	syncTechCmd.Flags().UintVarP(&syncTechCmdFlagWikiParentPageID, "parent-page", "p", 0, "The ID of Wiki parent page with Tech Debt tasks")
+	syncTechCmd.Flags().UintSliceVarP(&syncTechCmdFlagWikiTechDebtPageIDs, "debt-page", "d", []uint{}, "The ID of Wiki page with Tech Debt task")
+	syncTechCmd.Flags().StringVarP(&syncTechCmdFlagTfsWorkItemType, "type", "", "Requirement", "The type of TFS new Work Item (Task, Requirement, etc)")
+	syncTechCmd.Flags().BoolVarP(&syncTechCmdFlagForceCreate, "force", "", false, "Create work items even though there is already a link to the task on the wiki page.")
+	syncTechCmd.Flags().StringVarP(&syncTechCmdFlagTfsWorkItemPrefix, "prefix", "", "[SMP] [tech]", "The prefix of work itmes")
+	syncTechCmd.Flags().UintVarP(&syncTechCmdFlagTfsEstimate, "estimate", "", 16, "The default estimate")
 
 	cobra.CheckErr(syncTechCmd.MarkFlagRequired("requirement"))
 
@@ -86,7 +94,7 @@ func (t *techDebtPage) SetDescription(description string) { t.Description = desc
 func (t *techDebtPage) GetEstimate() float32              { return t.estimate }
 func (t *techDebtPage) SetEstimate(estimate float32)      { t.estimate = estimate }
 func (t *techDebtPage) GetTfsTaskID() int                 { return 0 }
-func (t *techDebtPage) SetTfsTaskID(tfsTaskID int)        {}
+func (t *techDebtPage) SetTfsTaskID(_ int)                {}
 func (t *techDebtPage) Clone() tasksui.Task {
 	t2 := *t
 	return &t2
@@ -133,9 +141,11 @@ func syncTechCommand(ctx context.Context) error {
 		return err
 	}
 
-	pages = lo.Filter(pages, func(item *techDebtPage, index int) bool {
-		return len(item.TfsTasks) == 0 && !item.IsEmptyPage
-	})
+	if !syncTechCmdFlagForceCreate {
+		pages = lo.Filter(pages, func(item *techDebtPage, index int) bool {
+			return len(item.TfsTasks) == 0 && !item.IsEmptyPage
+		})
+	}
 
 	if len(pages) == 0 {
 		fmt.Println("nothing to create or update")
@@ -152,15 +162,14 @@ func syncTechCommand(ctx context.Context) error {
 		return err
 	}
 
-	// previewTechDebtTasks(pages)
-
-	// ok, err := requestConfirmationTechDebt()
-	// if err != nil {
-	// 	return err
-	// }
-
 	uiTables := []tasksui.Table{
 		&techDebtPageTable{pages: pages},
+	}
+
+	if syncTechCmdFlagTfsWorkItemPrefix != "" {
+		for _, page := range pages {
+			page.Title = fmt.Sprintf("%s %s", syncTechCmdFlagTfsWorkItemPrefix, page.Title)
+		}
 	}
 
 	ok, err := tasksui.PreviewTasks(uiTables)
@@ -190,7 +199,16 @@ func createTechDebtTasks(ctx context.Context, pages []*techDebtPage, tfsAPI *tfs
 		progressbar.UpdateTitle(fmt.Sprintf("Creating %s", cutString(page.Title, 20, true)))
 		tags := []string{"Tech", "TechBacklog", "Prime", "SMP", "Core"}
 		tags = append(tags, page.Labels...)
-		tfsTask, err := tfsAPI.CreateChildTask(ctx, page.Title, page.Description, page.estimate, requirement, tags)
+
+		var tfsTask *workitemtracking.WorkItem
+		switch syncTechCmdFlagTfsWorkItemType {
+		case "Task":
+			tfsTask, err = tfsAPI.CreateChildTask(ctx, page.Title, page.Description, page.estimate, requirement, tags)
+		case "Requirement":
+			tfsTask, err = tfsAPI.CreateChildRequirement(ctx, "Technical", page.Title, page.Description, page.estimate, requirement, tags)
+		default:
+			return fmt.Errorf("uknown work itme type: %s", syncTechCmdFlagTfsWorkItemType)
+		}
 
 		if err != nil {
 			pterm.Error.Println(fmt.Sprintf("TFS Task NOT CREATED %s: %s", page.Title, err.Error()))
@@ -254,7 +272,7 @@ func parseTechDebtPages(ctx context.Context, pageIDs []string, api *wiki.API) ([
 			pages = append(pages, &techDebtPage{
 				TechDebt: &techDebt,
 				content:  content,
-				estimate: 4,
+				estimate: float32(syncTechCmdFlagTfsEstimate),
 			})
 			m.Unlock()
 

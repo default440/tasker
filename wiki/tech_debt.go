@@ -48,6 +48,7 @@ func (td *TechDebt) AddTfsTask(id int) {
 		<ac:parameter ac:name="host">1</ac:parameter>
 		<ac:parameter ac:name="assigned">true</ac:parameter>					
 		<ac:parameter ac:name="status">true</ac:parameter>
+		<ac:parameter ac:name="boardColumn">true</ac:parameter>
 	</ac:structured-macro>
 </p>
 `

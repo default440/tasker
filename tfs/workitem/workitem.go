@@ -24,6 +24,11 @@ type Relation struct {
 	Type string
 }
 
+type Field struct {
+	Path  *string
+	Value interface{}
+}
+
 func NewClient(ctx context.Context, conn *azuredevops.Connection, team, project string) (*Client, error) {
 	client, err := workitemtracking.NewClient(ctx, conn)
 	if err != nil {
@@ -149,11 +154,41 @@ func (api *Client) FindRequirement(ctx context.Context, namePattern, iterationPa
 	return nil, nil
 }
 
-func (api *Client) Create(ctx context.Context, workitemType, title, description, areaPath, iterationPath string, estimate float32, relations []*Relation, tags []string) (*workitemtracking.WorkItem, error) {
+func (api *Client) CreateRequirement(ctx context.Context, requirementType, title, description, areaPath, iterationPath string, estimate float32, relations []*Relation, tags []string) (*workitemtracking.WorkItem, error) {
+	fields := []*Field{
+		{
+			Path:  ptr.FromStr("/fields/Microsoft.VSTS.CMMI.RequirementType"),
+			Value: requirementType,
+		},
+		{
+			Path:  ptr.FromStr("/fields/Microsoft.VSTS.Common.ValueArea"),
+			Value: "Business",
+		},
+	}
+
+	return api.create(ctx, "Requirement", title, description, areaPath, iterationPath, estimate, relations, fields, tags)
+}
+
+func (api *Client) CreateTask(ctx context.Context, title, description, areaPath, iterationPath string, estimate float32, relations []*Relation, tags []string) (*workitemtracking.WorkItem, error) {
 	discipline := viper.GetString("tfsDiscipline")
+	fields := []*Field{
+		{
+			Path:  ptr.FromStr("/fields/Microsoft.VSTS.Common.Discipline"),
+			Value: discipline,
+		},
+		{
+			Path:  ptr.FromStr("/fields/Microsoft.VSTS.Scheduling.RemainingWork"),
+			Value: estimate,
+		},
+	}
+
+	return api.create(ctx, "Task", title, description, areaPath, iterationPath, estimate, relations, fields, tags)
+}
+
+func (api *Client) create(ctx context.Context, workitemType, title, description, areaPath, iterationPath string, estimate float32, relations []*Relation, fields []*Field, tags []string) (*workitemtracking.WorkItem, error) {
 	tags = append(tags, "tasker")
 
-	fields := []webapi.JsonPatchOperation{
+	documentFields := []webapi.JsonPatchOperation{
 		{
 			Op:    &webapi.OperationValues.Add,
 			Path:  ptr.FromStr("/fields/System.IterationPath"),
@@ -176,17 +211,7 @@ func (api *Client) Create(ctx context.Context, workitemType, title, description,
 		},
 		{
 			Op:    &webapi.OperationValues.Add,
-			Path:  ptr.FromStr("/fields/Microsoft.VSTS.Common.Discipline"),
-			Value: discipline,
-		},
-		{
-			Op:    &webapi.OperationValues.Add,
 			Path:  ptr.FromStr("/fields/Microsoft.VSTS.Scheduling.OriginalEstimate"),
-			Value: estimate,
-		},
-		{
-			Op:    &webapi.OperationValues.Add,
-			Path:  ptr.FromStr("/fields/Microsoft.VSTS.Scheduling.RemainingWork"),
 			Value: estimate,
 		},
 		{
@@ -196,8 +221,16 @@ func (api *Client) Create(ctx context.Context, workitemType, title, description,
 		},
 	}
 
+	for _, field := range fields {
+		documentFields = append(documentFields, webapi.JsonPatchOperation{
+			Op:    &webapi.OperationValues.Add,
+			Path:  field.Path,
+			Value: field.Value,
+		})
+	}
+
 	for _, relation := range relations {
-		fields = append(fields, webapi.JsonPatchOperation{
+		documentFields = append(documentFields, webapi.JsonPatchOperation{
 			Op:   &webapi.OperationValues.Add,
 			Path: ptr.FromStr("/relations/-"),
 			Value: workitemtracking.WorkItemRelation{
@@ -210,7 +243,7 @@ func (api *Client) Create(ctx context.Context, workitemType, title, description,
 	task, err := api.CreateWorkItem(ctx, workitemtracking.CreateWorkItemArgs{
 		Type:     ptr.From(workitemType),
 		Project:  &api.project,
-		Document: &fields,
+		Document: &documentFields,
 	})
 	if err != nil {
 		return nil, err
