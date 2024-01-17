@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"tasker/tasksui"
@@ -28,6 +29,7 @@ const (
 	descColumn
 	estColumn
 	tfsColumn
+	tagsColumn
 )
 
 type Task struct {
@@ -35,6 +37,7 @@ type Task struct {
 	Description string
 	Estimate    float32
 	TfsTaskID   int
+	TitleTags   []string
 	tfsColumn   *goquery.Selection
 	updated     bool
 	tr          *goquery.Selection
@@ -120,6 +123,9 @@ func ParseTasksTable(body string) ([]*Task, error) {
 					columnsMapping[colNum] = estColumn
 				case "tfs":
 					columnsMapping[colNum] = tfsColumn
+				case "тег":
+				case "теги":
+					columnsMapping[colNum] = tagsColumn
 				}
 			})
 
@@ -147,6 +153,11 @@ func ParseTasksTable(body string) ([]*Task, error) {
 					case tfsColumn:
 						task.TfsTaskID = parseTfsTaskID(td)
 						task.tfsColumn = td
+					case tagsColumn:
+						tagsStr := td.Text()
+						tags := regexp.MustCompile(`[\W]`).Split(tagsStr, -1)
+						tags = slices.DeleteFunc(tags, func(s string) bool { return s == "" })
+						task.TitleTags = tags
 					}
 				}
 			})

@@ -224,22 +224,30 @@ func createTasks(ctx context.Context, featureID int, tasks []*wiki.Task) error {
 	}
 
 	for _, t := range tasks {
-		progressbar.UpdateTitle(fmt.Sprintf("Creating %s", cutString(t.Title, 20, true)))
+		title := t.Title
+		for _, tag := range t.TitleTags {
+			title = fmt.Sprintf("[%s] %s", tag, title)
+		}
+
+		tags := t.TitleTags
+		tags = append(tags, syncCmdFlagTags...)
+
+		progressbar.UpdateTitle(fmt.Sprintf("Creating %s", cutString(title, 20, true)))
 
 		if t.TfsTaskID > 0 {
-			err := a.WiClient.Update(ctx, t.TfsTaskID, t.Title, t.Description, t.Estimate)
+			err := a.WiClient.Update(ctx, t.TfsTaskID, title, t.Description, t.Estimate)
 			if err == nil {
-				pterm.Success.Println(fmt.Sprintf("UPDATED %s", t.Title))
+				pterm.Success.Println(fmt.Sprintf("UPDATED %s", title))
 			} else {
-				pterm.Warning.Println(fmt.Sprintf("NOT UPDATED %s: %s", t.Title, err.Error()))
+				pterm.Warning.Println(fmt.Sprintf("NOT UPDATED %s: %s", title, err.Error()))
 			}
 		} else {
-			tfsTask, err := a.CreateChildTask(ctx, t.Title, t.Description, t.Estimate, feature, syncCmdFlagTags)
+			tfsTask, err := a.CreateChildTask(ctx, title, t.Description, t.Estimate, feature, tags)
 			if err == nil {
-				pterm.Success.Println(fmt.Sprintf("CREATED %s", t.Title))
+				pterm.Success.Println(fmt.Sprintf("CREATED %s", title))
 				t.Update(createTfsTaskMacro(tfsTask))
 			} else {
-				pterm.Error.Println(fmt.Sprintf("NOT CREATED %s: %s", t.Title, err.Error()))
+				pterm.Error.Println(fmt.Sprintf("NOT CREATED %s: %s", title, err.Error()))
 			}
 		}
 
