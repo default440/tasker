@@ -119,7 +119,7 @@ func createPrCommand(ctx context.Context, message string) error {
 		}
 	}
 
-	creator, err := client.NewCreator(ctx, repository)
+	creator, err := client.NewCreator(ctx, tfsAPI.WiClient, repository)
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func createPrCommandInteractive(ctx context.Context, mergeMessage string) error 
 
 	var creator *pr.Creator
 	ui.SetRepositoryChangeHandler(func(repository string) {
-		creator, err = client.NewCreator(ctx, repository)
+		creator, err = client.NewCreator(ctx, tfsAPI.WiClient, repository)
 		if err != nil {
 			errChan <- err
 			return
@@ -234,6 +234,10 @@ func createPrCommandInteractive(ctx context.Context, mergeMessage string) error 
 			if description != "" {
 				description = prependWorkItemIDs("\n"+description, s.WorkItems)
 			}
+		}
+
+		if description == "" {
+			description = message
 		}
 
 		pullrequest, err := creator.CreatePullRequest(ctx, s.SourceBranch, s.TargetBranch, message, description, s.WorkItems, s.Squash)

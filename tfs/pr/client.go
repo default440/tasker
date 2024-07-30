@@ -6,6 +6,7 @@ import (
 	"sort"
 	"sync"
 	"tasker/ptr"
+	"tasker/tfs/workitem"
 
 	"golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
@@ -43,8 +44,8 @@ func NewClient(ctx context.Context, conn *azuredevops.Connection, project string
 	}, nil
 }
 
-func (c *Client) NewCreator(ctx context.Context, repository string) (*Creator, error) {
-	return NewCreator(ctx, c, repository, c.project)
+func (c *Client) NewCreator(ctx context.Context, wiClient *workitem.Client, repository string) (*Creator, error) {
+	return NewCreator(ctx, c, wiClient, repository, c.project)
 }
 
 func (c *Client) GetActiveRepositories(ctx context.Context) ([]string, error) {

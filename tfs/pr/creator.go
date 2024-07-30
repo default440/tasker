@@ -11,11 +11,13 @@ import (
 	"tasker/clipboard"
 	"tasker/ptr"
 	"tasker/tfs/identity"
+	"tasker/tfs/workitem"
 
 	"golang.org/x/exp/slices"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/git"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/webapi"
+	"github.com/samber/lo"
 	"github.com/spf13/viper"
 )
 
@@ -27,13 +29,14 @@ var (
 
 type Creator struct {
 	Client       *Client
+	WiClient     *workitem.Client
 	RepositoryID *string
 	Project      *string
 	user         *identity.Identity
 	userCommits  []git.GitCommitRef
 }
 
-func NewCreator(ctx context.Context, client *Client, repository, project string) (*Creator, error) {
+func NewCreator(ctx context.Context, client *Client, wiClient *workitem.Client, repository, project string) (*Creator, error) {
 	user, err := identity.Get(ctx, client.conn)
 	if err != nil {
 		return nil, err
@@ -41,6 +44,7 @@ func NewCreator(ctx context.Context, client *Client, repository, project string)
 
 	c := Creator{
 		Client:       client,
+		WiClient:     wiClient,
 		RepositoryID: &repository,
 		Project:      &project,
 		user:         user,
@@ -101,7 +105,8 @@ func (c *Creator) Create(ctx context.Context, message, description string) (*git
 }
 
 func (c *Creator) CreatePullRequest(ctx context.Context, sourceBranch *git.GitBranchStats, targetBranch *git.GitBranchStats, message, description string, workItems []string, squash bool) (*git.GitPullRequest, error) {
-	prArgs := CreatePrArgs(
+	prArgs, err := c.CreatePrArgs(
+		ctx,
 		*c.Project,
 		*c.RepositoryID,
 		*sourceBranch.Name,
@@ -110,6 +115,9 @@ func (c *Creator) CreatePullRequest(ctx context.Context, sourceBranch *git.GitBr
 		description,
 		workItems,
 	)
+	if err != nil {
+		return nil, fmt.Errorf("pr args create error: %w", err)
+	}
 
 	pr, err := c.Client.CreatePullRequest(ctx, *prArgs)
 	if err != nil {
@@ -121,7 +129,7 @@ func (c *Creator) CreatePullRequest(ctx context.Context, sourceBranch *git.GitBr
 		fmt.Printf("clipboard error: %v\n", err)
 	}
 
-	err = c.setAutoComplete(ctx, pr.PullRequestId, message, squash)
+	err = c.setAutoComplete(ctx, pr.PullRequestId, *prArgs.GitPullRequestToCreate.CompletionOptions.MergeCommitMessage, squash)
 	if err != nil {
 		return pr, fmt.Errorf("set autocomplete error: %w", err)
 	}
@@ -205,12 +213,13 @@ func GetPullRequestURL(pr *git.GitPullRequest) string {
 }
 
 func (c *Creator) setAutoComplete(ctx context.Context, pullRequestID *int, message string, squash bool) error {
+	mergeCommitMessage := fmt.Sprintf("Merged PR %d: %s", *pullRequestID, message)
 	update := &git.GitPullRequest{
 		AutoCompleteSetBy: &webapi.IdentityRef{
 			Id: &c.user.Id,
 		},
 		CompletionOptions: &git.GitPullRequestCompletionOptions{
-			MergeCommitMessage: &message,
+			MergeCommitMessage: &mergeCommitMessage,
 		},
 	}
 	if squash {
@@ -293,7 +302,33 @@ func getWorkItems(commit *git.GitCommitRef) []string {
 	return items
 }
 
-func CreatePrArgs(project, repository, sourceBranch, targetBranch, message, description string, workItems []string) *git.CreatePullRequestArgs {
+func (c *Creator) CreatePrArgs(ctx context.Context, project, repository, sourceBranch, targetBranch, message, description string, workItems []string) (*git.CreatePullRequestArgs, error) {
+	mergeCommitMessage := message
+
+	// if len(description) > 0 {
+	// 	mergeCommitMessage += "\n\n" + description
+	// }
+
+	if len(workItems) > 0 {
+		mergeCommitMessage += "\n\n"
+
+		for _, workItem := range workItems {
+			id, err := strconv.Atoi(workItem)
+			if err != nil {
+				return nil, fmt.Errorf("parse workitem id error: %w", err)
+			}
+
+			wi, err := c.WiClient.Get(ctx, id)
+			if err != nil {
+				return nil, fmt.Errorf("get workitem error: %w", err)
+			}
+
+			mergeCommitMessage += fmt.Sprintf("#%s %s\n", workItem, workitem.GetTitle(wi))
+		}
+
+		mergeCommitMessage += "\nRelated work items: " + strings.Join(lo.Map(workItems, func(x string, _ int) string { return "#" + x }), ", ")
+	}
+
 	pr := &git.CreatePullRequestArgs{
 		RepositoryId: &repository,
 		Project:      &project,
@@ -303,7 +338,7 @@ func CreatePrArgs(project, repository, sourceBranch, targetBranch, message, desc
 			Title:         &message,
 			Description:   &description,
 			CompletionOptions: &git.GitPullRequestCompletionOptions{
-				MergeCommitMessage: &message,
+				MergeCommitMessage: &mergeCommitMessage,
 			},
 		},
 	}
@@ -312,7 +347,7 @@ func CreatePrArgs(project, repository, sourceBranch, targetBranch, message, desc
 		appendWorkItem(pr, workItemID)
 	}
 
-	return pr
+	return pr, nil
 }
 
 func parseWorkItemIDs(inputs []string) []string {
