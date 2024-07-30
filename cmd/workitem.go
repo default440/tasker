@@ -11,6 +11,7 @@ import (
 	"tasker/tfs"
 	"tasker/tfs/workitem"
 
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/webapi"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/workitemtracking"
 	"github.com/pterm/pterm"
 	"github.com/samber/lo"
@@ -75,6 +76,25 @@ var (
 		},
 	}
 
+	closeWorkItemsCmd = &cobra.Command{
+		Use:   "close <Work Item ID, ...>",
+		Short: "Close work items",
+		Long:  "Close work items by ID.",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			var workItemIDs []int
+
+			for i := range args {
+				workItemID, err := strconv.Atoi(args[i])
+				cobra.CheckErr(err)
+				workItemIDs = append(workItemIDs, workItemID)
+			}
+
+			err := closeWorkItemsCommand(cmd.Context(), workItemIDs)
+			cobra.CheckErr(err)
+		},
+	}
+
 	copyWorkItemCmdParentID      int
 	copyWorkItemCmdIterationPath string
 	copyWorkItemCmdAreaPath      string
@@ -91,6 +111,7 @@ func init() {
 	rootCmd.AddCommand(deleteWorkItemCmd)
 	rootCmd.AddCommand(copyWorkItemCmd)
 	rootCmd.AddCommand(queryWorkItemCmd)
+	rootCmd.AddCommand(closeWorkItemsCmd)
 
 	copyWorkItemCmd.Flags().IntVarP(&copyWorkItemCmdParentID, "parent", "p", 0, "Id of parent of new Work Item (if specified, then source added as AffectedBy)")
 	copyWorkItemCmd.Flags().StringVarP(&copyWorkItemCmdIterationPath, "iteration", "i", "", "Iteration Path of new Work Item")
@@ -102,6 +123,41 @@ func init() {
 	queryWorkItemCmd.Flags().BoolVarP(&queryWorkItemCmdFlagActive, "active", "a", false, "Work items in active state")
 	queryWorkItemCmd.Flags().StringSliceVarP(&queryWorkItemCmdFlagTags, "tag", "", nil, "Work items tag")
 }
+
+func closeWorkItemsCommand(ctx context.Context, workItemIDs []int) error {
+	spinner, _ := pterm.DefaultSpinner.Start()
+	defer func() {
+		_ = spinner.Stop()
+	}()
+
+	a, err := tfs.NewAPI(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, workItemID := range workItemIDs {
+		fields := []webapi.JsonPatchOperation{
+			{
+				Op:    &webapi.OperationValues.Replace,
+				Path:  ptr.FromStr("/fields/System.State"),
+				Value: "Closed",
+			},
+		}
+
+		_, err := a.WiClient.UpdateWorkItem(ctx, workitemtracking.UpdateWorkItemArgs{
+			Id:       ptr.FromInt(workItemID),
+			Project:  &a.Project,
+			Document: &fields,
+		})
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func copyWorkItemCommand(ctx context.Context, sourceWorkItemID int) error {
 	spinner, _ := pterm.DefaultSpinner.Start()
 	defer func() {
