@@ -139,7 +139,7 @@ func (a *API) CreateChildTask(ctx context.Context, title, description string, es
 	return a.WiClient.CreateTask(ctx, title, description, areaPath, iterationPath, estimate, relations, tags)
 }
 
-func (a *API) CreateChildRequirement(ctx context.Context, requirementType, title, description string, estimate float32, parent *workitemtracking.WorkItem, tags []string) (*workitemtracking.WorkItem, error) {
+func (a *API) CreateChildRequirement(ctx context.Context, requirementType, title, description string, estimate, priority float32, parent *workitemtracking.WorkItem, tags []string) (*workitemtracking.WorkItem, error) {
 	iterationPath := workitem.GetIterationPath(parent)
 	areaPath := workitem.GetAreaPath(parent)
 	relations := []*workitem.Relation{
@@ -149,5 +149,5 @@ func (a *API) CreateChildRequirement(ctx context.Context, requirementType, title
 		},
 	}
 
-	return a.WiClient.CreateRequirement(ctx, requirementType, title, description, areaPath, iterationPath, estimate, relations, tags)
+	return a.WiClient.CreateRequirement(ctx, requirementType, title, description, areaPath, iterationPath, estimate, priority, relations, tags)
 }

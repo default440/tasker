@@ -80,7 +80,7 @@ var (
 		Use:   "close <Work Item ID, ...>",
 		Short: "Close work items",
 		Long:  "Close work items by ID.",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			var workItemIDs []int
 

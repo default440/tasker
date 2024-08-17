@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"tasker/tasksui"
 	"tasker/tfs"
@@ -47,6 +49,8 @@ var (
 		},
 	}
 
+	techDebtPriorityRegexp = regexp.MustCompile(`\d+`)
+
 	syncTechCmdFlagTfsRequirementID    uint
 	syncTechCmdFlagWikiParentPageID    uint
 	syncTechCmdFlagWikiTechDebtPageIDs []uint
@@ -54,6 +58,7 @@ var (
 	syncTechCmdFlagForceCreate         bool
 	syncTechCmdFlagTfsWorkItemPrefix   string
 	syncTechCmdFlagTfsEstimate         uint
+	syncTechCmdFlagTfsDefaultPriority  uint
 
 	archiveTechCmdFlagWikiParentPageID  uint
 	archiveTechCmdFlagWikiArchivePageID uint
@@ -70,7 +75,8 @@ func init() {
 	syncTechCmd.Flags().StringVarP(&syncTechCmdFlagTfsWorkItemType, "type", "", "Requirement", "The type of TFS new Work Item (Task, Requirement, etc)")
 	syncTechCmd.Flags().BoolVarP(&syncTechCmdFlagForceCreate, "force", "", false, "Create work items even though there is already a link to the task on the wiki page.")
 	syncTechCmd.Flags().StringVarP(&syncTechCmdFlagTfsWorkItemPrefix, "prefix", "", "[SMP] [tech]", "The prefix of work itmes")
-	syncTechCmd.Flags().UintVarP(&syncTechCmdFlagTfsEstimate, "estimate", "", 16, "The default estimate")
+	syncTechCmd.Flags().UintVarP(&syncTechCmdFlagTfsEstimate, "estimate", "e", 16, "The default estimate")
+	syncTechCmd.Flags().UintVarP(&syncTechCmdFlagTfsDefaultPriority, "priority", "", 1, "The work item default priority")
 
 	cobra.CheckErr(syncTechCmd.MarkFlagRequired("requirement"))
 
@@ -85,6 +91,7 @@ type techDebtPage struct {
 	*wiki.TechDebt
 	content  *goconfluence.Content
 	estimate float32
+	priority float32
 }
 
 func (t *techDebtPage) GetTitle() string                  { return t.Title }
@@ -93,6 +100,8 @@ func (t *techDebtPage) GetDescription() string            { return t.Description
 func (t *techDebtPage) SetDescription(description string) { t.Description = description }
 func (t *techDebtPage) GetEstimate() float32              { return t.estimate }
 func (t *techDebtPage) SetEstimate(estimate float32)      { t.estimate = estimate }
+func (t *techDebtPage) GetPriority() float32              { return t.priority }
+func (t *techDebtPage) SetPriority(priority float32)      { t.priority = priority }
 func (t *techDebtPage) GetTfsTaskID() int                 { return 0 }
 func (t *techDebtPage) SetTfsTaskID(_ int)                {}
 func (t *techDebtPage) Clone() tasksui.Task {
@@ -142,7 +151,7 @@ func syncTechCommand(ctx context.Context) error {
 	}
 
 	if !syncTechCmdFlagForceCreate {
-		pages = lo.Filter(pages, func(item *techDebtPage, index int) bool {
+		pages = lo.Filter(pages, func(item *techDebtPage, _ int) bool {
 			return len(item.TfsTasks) == 0 && !item.IsEmptyPage
 		})
 	}
@@ -164,6 +173,10 @@ func syncTechCommand(ctx context.Context) error {
 
 	uiTables := []tasksui.Table{
 		&techDebtPageTable{pages: pages},
+	}
+
+	for _, page := range pages {
+		page.Title, _ = strings.CutPrefix(page.Title, fmt.Sprintf("%v. ", page.priority))
 	}
 
 	if syncTechCmdFlagTfsWorkItemPrefix != "" {
@@ -205,7 +218,7 @@ func createTechDebtTasks(ctx context.Context, pages []*techDebtPage, tfsAPI *tfs
 		case "Task":
 			tfsTask, err = tfsAPI.CreateChildTask(ctx, page.Title, page.Description, page.estimate, requirement, tags)
 		case "Requirement":
-			tfsTask, err = tfsAPI.CreateChildRequirement(ctx, "Technical", page.Title, page.Description, page.estimate, requirement, tags)
+			tfsTask, err = tfsAPI.CreateChildRequirement(ctx, "Technical", page.Title, page.Description, page.estimate, page.priority, requirement, tags)
 		default:
 			return fmt.Errorf("uknown work itme type: %s", syncTechCmdFlagTfsWorkItemType)
 		}
@@ -259,6 +272,11 @@ func parseTechDebtPages(ctx context.Context, pageIDs []string, api *wiki.API) ([
 				return err
 			}
 
+			priority, err := strconv.ParseFloat(techDebtPriorityRegexp.FindString(content.Title), 32)
+			if err != nil {
+				priority = float64(syncTechCmdFlagTfsDefaultPriority)
+			}
+
 			techDebt, err := wiki.ParseTechDebt(content)
 			if err != nil {
 				return err
@@ -273,6 +291,7 @@ func parseTechDebtPages(ctx context.Context, pageIDs []string, api *wiki.API) ([
 				TechDebt: &techDebt,
 				content:  content,
 				estimate: float32(syncTechCmdFlagTfsEstimate),
+				priority: float32(priority),
 			})
 			m.Unlock()
 

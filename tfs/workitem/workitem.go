@@ -3,6 +3,7 @@ package workitem
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"tasker/ptr"
 
@@ -154,7 +155,7 @@ func (api *Client) FindRequirement(ctx context.Context, namePattern, iterationPa
 	return nil, nil
 }
 
-func (api *Client) CreateRequirement(ctx context.Context, requirementType, title, description, areaPath, iterationPath string, estimate float32, relations []*Relation, tags []string) (*workitemtracking.WorkItem, error) {
+func (api *Client) CreateRequirement(ctx context.Context, requirementType, title, description, areaPath, iterationPath string, estimate, priority float32, relations []*Relation, tags []string) (*workitemtracking.WorkItem, error) {
 	fields := []*Field{
 		{
 			Path:  ptr.FromStr("/fields/Microsoft.VSTS.CMMI.RequirementType"),
@@ -162,7 +163,15 @@ func (api *Client) CreateRequirement(ctx context.Context, requirementType, title
 		},
 		{
 			Path:  ptr.FromStr("/fields/Microsoft.VSTS.Common.ValueArea"),
-			Value: "Business",
+			Value: "Architectural",
+		},
+		{
+			Path:  ptr.FromStr("/fields/Microsoft.VSTS.Common.Priority"),
+			Value: fmt.Sprintf("%v", priority),
+		},
+		{
+			Path:  ptr.FromStr("/fields/System.AssignedTo"),
+			Value: nil,
 		},
 	}
 
