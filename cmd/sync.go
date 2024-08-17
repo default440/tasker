@@ -52,6 +52,7 @@ var (
 	syncCmdFlagTitleCustomPrefix  string
 	syncCmdFlagTags               []string
 	syncCmdFlagPartNumber         uint32
+	syncCmdFlagAppendTagsToTitle  bool
 
 	syncCmdTemplatesCache = make(map[string]*template.Template)
 )
@@ -64,8 +65,9 @@ func init() {
 	syncCmd.Flags().BoolVar(&syncCmdFlagSkipNewTasks, "update-only", false, "Do not create new tasks")
 	syncCmd.Flags().StringVar(&syncCmdFlagTitleCustomPrefix, "prefix", "", "Custom prefix for each task, ie \"Part 3. \"")
 	syncCmd.Flags().BoolVar(&syncCmdFlagNoTitleAutoPrefix, "no-auto-prefix", false, "Do not prepend each task with index prefix")
-	syncCmd.Flags().StringSliceVarP(&createTaskCmdFlagTags, "tag", "t", []string{}, "Tags of the task. Can be separated by comma or specified multiple times.")
+	syncCmd.Flags().StringSliceVarP(&syncCmdFlagTags, "tag", "t", []string{}, "Tags of the tasks. Can be separated by comma or specified multiple times.")
 	syncCmd.Flags().Uint32VarP(&syncCmdFlagPartNumber, "part", "p", 0, "Table number (tasks part), if tasks splitted into multiple tables (parts)")
+	syncCmd.Flags().BoolVar(&syncCmdFlagAppendTagsToTitle, "append-tags-to-title", false, "Append tas tags to task title")
 }
 
 func syncCommand(ctx context.Context, wikiPageID int) error {
@@ -225,11 +227,13 @@ func createTasks(ctx context.Context, featureID int, tasks []*wiki.Task) error {
 
 	for _, t := range tasks {
 		title := t.Title
-		for _, tag := range t.TitleTags {
-			title = fmt.Sprintf("[%s] %s", tag, title)
+		if syncCmdFlagAppendTagsToTitle {
+			for _, tag := range t.Tags {
+				title = fmt.Sprintf("[%s] %s", tag, title)
+			}
 		}
 
-		tags := t.TitleTags
+		tags := t.Tags
 		tags = append(tags, syncCmdFlagTags...)
 
 		progressbar.UpdateTitle(fmt.Sprintf("Creating %s", cutString(title, 20, true)))
