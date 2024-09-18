@@ -140,8 +140,9 @@ func (a *API) CreateChildTask(ctx context.Context, title, description string, es
 }
 
 func (a *API) CreateChildRequirement(ctx context.Context, requirementType, title, description string, estimate, priority float32, parent *workitemtracking.WorkItem, tags []string) (*workitemtracking.WorkItem, error) {
-	iterationPath := workitem.GetIterationPath(parent)
+	// iterationPath := workitem.GetIterationPath(parent)
 	areaPath := workitem.GetAreaPath(parent)
+	iterationPath := areaPath
 	relations := []*workitem.Relation{
 		{
 			URL:  *parent.Url,
