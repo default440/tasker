@@ -155,7 +155,7 @@ func ParseTasksTable(body string) ([]*Task, error) {
 						task.tfsColumn = td
 					case tagsColumn:
 						tagsStr := td.Text()
-						tags := regexp.MustCompile(`[\W]`).Split(tagsStr, -1)
+						tags := regexp.MustCompile(`[\PL]`).Split(tagsStr, -1)
 						tags = slices.DeleteFunc(tags, func(s string) bool { return s == "" })
 						task.Tags = tags
 					}

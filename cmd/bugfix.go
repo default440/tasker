@@ -82,8 +82,7 @@ func createBugfixCommand(ctx context.Context, bugID int, description string) err
 		return err
 	}
 
-	createTaskCmdFlagTags = append(createTaskCmdFlagTags, "bugfix")
-	task, err := a.Create(
+	task, err := a.CreateWorkItem(
 		ctx,
 		createTaskCmdFlagWorkitemType,
 		title,
@@ -94,6 +93,7 @@ func createBugfixCommand(ctx context.Context, bugID int, description string) err
 		createTaskCmdFlagTags,
 		parentUserStoryNamePattern,
 		!createTaskCmdFlagUnassignedTask,
+		false,
 	)
 	printCreateTaskResult(task, err, spinner)
 	openInBrowser(task)

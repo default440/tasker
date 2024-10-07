@@ -210,7 +210,7 @@ func createTechDebtTasks(ctx context.Context, pages []*techDebtPage, tfsAPI *tfs
 
 	for _, page := range pages {
 		progressbar.UpdateTitle(fmt.Sprintf("Creating %s", cutString(page.Title, 20, true)))
-		tags := []string{"Tech", "TechBacklog", "Prime", "SMP", "Core"}
+		tags := []string{}
 		tags = append(tags, page.Labels...)
 
 		var tfsTask *workitemtracking.WorkItem

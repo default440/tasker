@@ -9,6 +9,7 @@ import (
 	"tasker/tfs/workitem"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6"
+	azurework "github.com/microsoft/azure-devops-go-api/azuredevops/v6/work"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/workitemtracking"
 	"github.com/spf13/viper"
 )
@@ -42,7 +43,11 @@ func NewAPI(ctx context.Context) (*API, error) {
 	}, nil
 }
 
-func (a *API) Create(ctx context.Context, workitemType, title, description string, estimate float32, parentID int, relations []*workitem.Relation, tags []string, parentNamePattern string, assign bool) (*workitemtracking.WorkItem, error) {
+func (a *API) GetCurrentIteration(ctx context.Context) (*azurework.TeamSettingsIteration, error) {
+	return work.GetCurrentIteration(ctx, a.Conn, a.Project, a.Team)
+}
+
+func (a *API) CreateWorkItem(ctx context.Context, workitemType, title, description string, estimate float32, parentID int, relations []*workitem.Relation, tags []string, parentNamePattern string, assign, currentIter bool) (*workitemtracking.WorkItem, error) {
 	var err error
 	var parent *workitemtracking.WorkItem
 	var user string
@@ -58,7 +63,7 @@ func (a *API) Create(ctx context.Context, workitemType, title, description strin
 	if parentID > 0 {
 		parent, err = a.WiClient.Get(ctx, parentID)
 	} else {
-		parent, err = a.findActiveRequirementByPattern(ctx, parentNamePattern)
+		parent, err = a.findCurrentRequirementByPattern(ctx, parentNamePattern)
 	}
 	if err != nil {
 		return nil, err
@@ -69,30 +74,46 @@ func (a *API) Create(ctx context.Context, workitemType, title, description strin
 		Type: "System.LinkTypes.Hierarchy-Reverse",
 	}
 	relations = append(relations, &parentRelation)
-	iterationPath := workitem.GetIterationPath(parent)
+
+	var iterationPath string
+	if currentIter {
+		currentIterationPath, err := a.GetCurrentIteration(ctx)
+		if err != nil {
+			return nil, err
+		}
+		iterationPath = *currentIterationPath.Name
+	} else {
+		iterationPath = workitem.GetIterationPath(parent)
+	}
+
 	areaPath := workitem.GetAreaPath(parent)
 
 	if description == "" {
 		description = title
 	}
 
-	task, err := a.WiClient.CreateTask(ctx, title, description, areaPath, iterationPath, estimate, relations, tags)
+	var workitem *workitemtracking.WorkItem
+	if workitemType == "Requirement" {
+		workitem, err = a.WiClient.CreateRequirement(ctx, "Developmtn", title, description, areaPath, iterationPath, estimate, 1, relations, tags)
+	} else {
+		workitem, err = a.WiClient.CreateTask(ctx, title, description, areaPath, iterationPath, estimate, relations, tags)
+	}
 	if err != nil {
 		return nil, err
 	}
 
 	if assign {
-		err = a.WiClient.Assign(ctx, task, user)
+		err = a.WiClient.Assign(ctx, workitem, user)
 		if err != nil {
-			return task, err
+			return workitem, err
 		}
 	}
 
-	return task, nil
+	return workitem, nil
 }
 
 func (a *API) findActiveRequirementByPattern(ctx context.Context, namePattern string) (*workitemtracking.WorkItem, error) {
-	requirement, err := a.WiClient.FindRequirement(ctx, namePattern, "")
+	requirement, err := a.WiClient.FindRequirement(ctx, namePattern, "", "Active")
 	if err != nil {
 		return nil, err
 	}
@@ -112,8 +133,8 @@ func (a *API) findCurrentRequirementByPattern(ctx context.Context, namePattern s
 
 	for i := len(*iterations) - 1; i >= 0; i-- {
 		iteration := (*iterations)[i]
-		if *iteration.Attributes.TimeFrame == "current" || *iteration.Attributes.TimeFrame == "past" {
-			requirement, err := a.WiClient.FindRequirement(ctx, namePattern, *iteration.Path)
+		if *iteration.Attributes.TimeFrame == "current" {
+			requirement, err := a.WiClient.FindRequirement(ctx, namePattern, *iteration.Path, "")
 			if err != nil {
 				return nil, err
 			}

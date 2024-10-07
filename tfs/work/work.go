@@ -2,6 +2,7 @@ package work
 
 import (
 	"context"
+	"errors"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/work"
@@ -19,7 +20,21 @@ func GetIterations(ctx context.Context, conn *azuredevops.Connection, project, t
 	})
 }
 
-func GetCurrentIteration(iterations *[]work.TeamSettingsIteration) *work.TeamSettingsIteration {
+func GetCurrentIteration(ctx context.Context, conn *azuredevops.Connection, project, team string) (*work.TeamSettingsIteration, error) {
+	iterations, err := GetIterations(ctx, conn, project, team)
+	if err != nil {
+		return nil, err
+	}
+
+	currentIter := FindCurrentIteration(iterations)
+	if currentIter != nil {
+		return currentIter, nil
+	}
+
+	return nil, errors.New("current iteration not found")
+}
+
+func FindCurrentIteration(iterations *[]work.TeamSettingsIteration) *work.TeamSettingsIteration {
 	for i := 0; i < len(*iterations); i++ {
 		if *(*iterations)[i].Attributes.TimeFrame == "current" {
 			return &(*iterations)[i]
@@ -28,7 +43,7 @@ func GetCurrentIteration(iterations *[]work.TeamSettingsIteration) *work.TeamSet
 	return nil
 }
 
-func GetPreviousIteration(iterations *[]work.TeamSettingsIteration) *work.TeamSettingsIteration {
+func FindPreviousIteration(iterations *[]work.TeamSettingsIteration) *work.TeamSettingsIteration {
 	for i := 1; i < len(*iterations); i++ {
 		if *(*iterations)[i].Attributes.TimeFrame == "current" {
 			return &(*iterations)[i-1]

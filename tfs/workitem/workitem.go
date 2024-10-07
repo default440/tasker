@@ -119,7 +119,7 @@ func (api *Client) FindUserStory(ctx context.Context, namePattern, iterationPath
 	return nil, nil
 }
 
-func (api *Client) FindRequirement(ctx context.Context, namePattern, iterationPath string) (*workitemtracking.WorkItem, error) {
+func (api *Client) FindRequirement(ctx context.Context, namePattern, iterationPath, state string) (*workitemtracking.WorkItem, error) {
 	if namePattern == "" {
 		return nil, errors.New("user story name pattern is empty")
 	}
@@ -129,15 +129,20 @@ func (api *Client) FindRequirement(ctx context.Context, namePattern, iterationPa
 		iterationFilter = `AND [System.IterationPath] = '` + iterationPath + `'`
 	}
 
+	var stateFilter string
+	if state != "" {
+		stateFilter = `AND [State] = '` + stateFilter + `'`
+	}
+
 	queryResult, err := api.QueryByWiql(ctx, workitemtracking.QueryByWiqlArgs{
 		Wiql: &workitemtracking.Wiql{
 			Query: ptr.FromStr(`
 				SELECT [Id], [Title], [System.AreaPath], [System.IterationPath]
 				FROM WorkItems
 				WHERE [Work Item Type] = 'Requirement'
-					` + iterationFilter + `
 					AND [Title] CONTAINS WORDS '` + namePattern + `'
-					AND [State] = 'Active'
+					` + iterationFilter + `
+					` + stateFilter + `
 			`),
 		},
 		Project: &api.project,
@@ -195,8 +200,6 @@ func (api *Client) CreateTask(ctx context.Context, title, description, areaPath,
 }
 
 func (api *Client) create(ctx context.Context, workitemType, title, description, areaPath, iterationPath string, estimate float32, relations []*Relation, fields []*Field, tags []string) (*workitemtracking.WorkItem, error) {
-	tags = append(tags, "tasker")
-
 	documentFields := []webapi.JsonPatchOperation{
 		{
 			Op:    &webapi.OperationValues.Add,
@@ -262,7 +265,6 @@ func (api *Client) create(ctx context.Context, workitemType, title, description,
 }
 
 func (api *Client) Copy(ctx context.Context, sourceWorkItem *workitemtracking.WorkItem, areaPath, iterationPath string, relations []*Relation, tags []string) (*workitemtracking.WorkItem, error) {
-	tags = append(tags, "tasker")
 	fields := []webapi.JsonPatchOperation{
 		{
 			Op:    &webapi.OperationValues.Add,

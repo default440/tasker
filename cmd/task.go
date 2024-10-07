@@ -42,6 +42,7 @@ var (
 	createTaskCmdFlagTags              []string
 	createTaskCmdFlagUnassignedTask    bool
 	createTaskCmdFlagWorkitemType      string
+	createTaskCmdFlagCurrentIteration  bool
 )
 
 func init() {
@@ -58,6 +59,7 @@ func init() {
 	createTaskCmd.PersistentFlags().StringSliceVarP(&createTaskCmdFlagTags, "tag", "t", []string{}, "Tags of the task. Can be separated by comma or specified multiple times.")
 	createTaskCmd.PersistentFlags().BoolVarP(&createTaskCmdFlagUnassignedTask, "unassigned", "u", false, "Do not assign task")
 	createTaskCmd.PersistentFlags().StringVarP(&createTaskCmdFlagWorkitemType, "type", "", "Task", "Type of workitem (Task, Requirement, etc.)")
+	createTaskCmd.PersistentFlags().BoolVarP(&createTaskCmdFlagCurrentIteration, "current", "c", false, "Assign current iteration path")
 
 	cobra.CheckErr(createTaskCmd.MarkPersistentFlagRequired("estimate"))
 
@@ -80,7 +82,7 @@ func createTaskCommand(ctx context.Context, title, description string) error {
 		return err
 	}
 
-	task, err := api.Create(
+	task, err := api.CreateWorkItem(
 		ctx,
 		createTaskCmdFlagWorkitemType,
 		title,
@@ -91,6 +93,7 @@ func createTaskCommand(ctx context.Context, title, description string) error {
 		createTaskCmdFlagTags,
 		parentUserStoryNamePattern,
 		!createTaskCmdFlagUnassignedTask,
+		createTaskCmdFlagCurrentIteration,
 	)
 	printCreateTaskResult(task, err, spinner)
 	openInBrowser(task)
