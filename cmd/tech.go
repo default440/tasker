@@ -25,14 +25,14 @@ var (
 	techCmd = &cobra.Command{
 		Use:   "tech",
 		Short: "Manage Tech Debt",
-		Long:  `View, create, synchronize etc. techical depbt tasks.`,
+		Long:  `View, create, synchronize etc. technical debt tasks.`,
 	}
 
 	syncTechCmd = &cobra.Command{
 		Use:   "sync",
-		Short: "Sync tech depbt tasks",
-		Long:  `Synchronize techical debt tasks between TFS and Wiki.`,
-		Run: func(cmd *cobra.Command, args []string) {
+		Short: "Sync tech debt tasks",
+		Long:  `Synchronize technical debt tasks between TFS and Wiki.`,
+		Run: func(cmd *cobra.Command, _ []string) {
 			err := syncTechCommand(cmd.Context())
 			cobra.CheckErr(err)
 		},
@@ -42,8 +42,8 @@ var (
 		Use:     "archive",
 		Aliases: []string{"arch"},
 		Short:   "Archive completed tech debt tasks",
-		Long:    `Move completed techical debt tasks under Archive page.`,
-		Run: func(cmd *cobra.Command, args []string) {
+		Long:    `Move completed technical debt tasks under Archive page.`,
+		Run: func(cmd *cobra.Command, _ []string) {
 			err := archiveTechCommand(cmd.Context())
 			cobra.CheckErr(err)
 		},
@@ -75,7 +75,7 @@ func init() {
 	syncTechCmd.Flags().UintSliceVarP(&syncTechCmdFlagWikiTechDebtPageIDs, "debt-page", "d", []uint{}, "The ID of Wiki page with Tech Debt task")
 	syncTechCmd.Flags().StringVarP(&syncTechCmdFlagTfsWorkItemType, "type", "", "Requirement", "The type of TFS new Work Item (Task, Requirement, etc)")
 	syncTechCmd.Flags().BoolVarP(&syncTechCmdFlagForceCreate, "force", "", false, "Create work items even though there is already a link to the task on the wiki page.")
-	syncTechCmd.Flags().StringVarP(&syncTechCmdFlagTfsWorkItemPrefix, "prefix", "", "[SMP] [tech]", "The prefix of work itmes")
+	syncTechCmd.Flags().StringVarP(&syncTechCmdFlagTfsWorkItemPrefix, "prefix", "", "[SMP] [tech]", "The prefix of work items")
 	syncTechCmd.Flags().UintVarP(&syncTechCmdFlagTfsEstimate, "estimate", "e", 16, "The default estimate")
 	syncTechCmd.Flags().UintVarP(&syncTechCmdFlagTfsDefaultPriority, "priority", "", 1, "The work item default priority")
 
@@ -225,7 +225,7 @@ func createTechDebtTasks(ctx context.Context, pages []*techDebtPage, tfsAPI *tfs
 		case "Requirement":
 			tfsTask, err = tfsAPI.CreateChildRequirement(ctx, "Technical", page.Title, page.Description, page.estimate, page.priority, requirement, tags)
 		default:
-			return fmt.Errorf("uknown work itme type: %s", syncTechCmdFlagTfsWorkItemType)
+			return fmt.Errorf("unknown work item type: %s", syncTechCmdFlagTfsWorkItemType)
 		}
 
 		if err != nil {
@@ -236,7 +236,7 @@ func createTechDebtTasks(ctx context.Context, pages []*techDebtPage, tfsAPI *tfs
 			err = updateTechDebtWikiPage(wikiAPI, page)
 
 			if err != nil {
-				pterm.Error.Println(fmt.Sprintf("Wiki page NOT UDPADET %s: %s", page.Title, err.Error()))
+				pterm.Error.Println(fmt.Sprintf("Wiki page NOT UPDATED %s: %s", page.Title, err.Error()))
 			} else {
 				pterm.Success.Println(fmt.Sprintf("CREATED %s", page.Title))
 			}
@@ -439,7 +439,7 @@ func archiveTechCommand(ctx context.Context) error {
 		return err
 	}
 
-	pages = lo.Filter(pages, func(page *techDebtPage, i int) bool {
+	pages = lo.Filter(pages, func(page *techDebtPage, _ int) bool {
 		pageTasks, ok := tasks[page.PageID]
 		return ok && lo.EveryBy(pageTasks, func(wi *workitemtracking.WorkItem) bool {
 			state, ok := (*wi.Fields)["System.State"]

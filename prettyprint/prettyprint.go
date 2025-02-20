@@ -8,12 +8,12 @@ import (
 	"github.com/hokaccha/go-prettyjson"
 )
 
-func JSONObjectColor(obj interface{}) {
+func JSONObjectColor(obj any) {
 	s, _ := prettyjson.Marshal(obj)
 	fmt.Println(string(s))
 }
 
-func JSONObject(obj interface{}) {
+func JSONObject(obj any) {
 	j, err := json.MarshalIndent(obj, "", "  ")
 	if err != nil {
 		log.Fatal(err)
@@ -21,7 +21,7 @@ func JSONObject(obj interface{}) {
 	fmt.Println(string(j))
 }
 
-func JSONObjectToColorString(obj interface{}) string {
+func JSONObjectToColorString(obj any) string {
 	s, _ := prettyjson.Marshal(obj)
 	return string(s)
 }

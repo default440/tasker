@@ -212,10 +212,10 @@ func UpdatePageContent(body string, tasks []*Task) (string, bool, error) {
 	}
 
 	for index, table := range tables {
-		tableElelemnt := table.Clone()
-		tableElelemnt.Empty()
-		tableElelemnt.RemoveAttr("index")
-		table.WrapInnerSelection(tableElelemnt)
+		tableElement := table.Clone()
+		tableElement.Empty()
+		tableElement.RemoveAttr("index")
+		table.WrapInnerSelection(tableElement)
 		tableMarkup, _ := table.Html()
 		tableMarkup = restoreMarkup(tableMarkup)
 

@@ -69,7 +69,7 @@ func listBranchesCommand(ctx context.Context) error {
 	}
 
 	if len(reps) == 0 {
-		spinner.WithMessageStyle(pterm.NewStyle(pterm.FgCyan)).UpdateText("nothig found")
+		spinner.WithMessageStyle(pterm.NewStyle(pterm.FgCyan)).UpdateText("nothing found")
 	} else {
 		_ = spinner.Stop()
 	}

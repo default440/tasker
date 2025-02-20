@@ -35,7 +35,7 @@ func GetCurrentIteration(ctx context.Context, conn *azuredevops.Connection, proj
 }
 
 func FindCurrentIteration(iterations *[]work.TeamSettingsIteration) *work.TeamSettingsIteration {
-	for i := 0; i < len(*iterations); i++ {
+	for i := range *iterations {
 		if *(*iterations)[i].Attributes.TimeFrame == "current" {
 			return &(*iterations)[i]
 		}

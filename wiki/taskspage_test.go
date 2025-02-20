@@ -8,7 +8,7 @@ import (
 )
 
 func setNodesToNil(tasks []*Task) {
-	for i := 0; i < len(tasks); i++ {
+	for i := range tasks {
 		tasks[i].tfsColumn = nil
 		tasks[i].tr = nil
 	}

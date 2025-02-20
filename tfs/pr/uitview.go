@@ -270,7 +270,7 @@ func (ui *TviewUI) SetMergeMessage(mergeMessage string) {
 
 func getBranchNames(branches []git.GitBranchStats) []string {
 	options := make([]string, 0, len(branches))
-	for i := 0; i < len(branches); i++ {
+	for i := range branches {
 		options = append(options, *branches[i].Name)
 	}
 	return options

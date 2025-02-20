@@ -72,7 +72,7 @@ func init() {
 	prCmd.AddCommand(getPrCmd)
 
 	createPrCmd.Flags().StringVarP(&createPrCmdFlagProject, "project", "p", "NSMS", "TFS project name")
-	createPrCmd.Flags().StringVarP(&createPrCmdFlagMessage, "message", "m", "", "Megre commit message")
+	createPrCmd.Flags().StringVarP(&createPrCmdFlagMessage, "message", "m", "", "Merge commit message")
 	createPrCmd.Flags().StringVarP(&createPrCmdFlagRepository, "repository", "r", "", "TFS repository name")
 	createPrCmd.Flags().BoolVarP(&createPrCmdFlagOldUI, "old-ui", "", false, "Old UI")
 }

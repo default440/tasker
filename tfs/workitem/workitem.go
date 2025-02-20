@@ -27,7 +27,7 @@ type Relation struct {
 
 type Field struct {
 	Path  *string
-	Value interface{}
+	Value any
 }
 
 func NewClient(ctx context.Context, conn *azuredevops.Connection, team, project string) (*Client, error) {
@@ -356,9 +356,9 @@ func (api *Client) Assign(ctx context.Context, task *workitemtracking.WorkItem, 
 }
 
 func GetURL(w *workitemtracking.WorkItem) string {
-	lm, ok := w.Links.(map[string]interface{})
+	lm, ok := w.Links.(map[string]any)
 	if ok {
-		pm, ok := lm["html"].(map[string]interface{})
+		pm, ok := lm["html"].(map[string]any)
 		if ok {
 			href, ok := pm["href"]
 			if ok {
@@ -422,7 +422,7 @@ func GetTags(w *workitemtracking.WorkItem) []string {
 		tagsStr, ok := tagsValue.(string)
 		if ok {
 			tags := strings.Split(tagsStr, ";")
-			for i := 0; i < len(tags); i++ {
+			for i := range tags {
 				tags[i] = strings.TrimSpace(tags[i])
 			}
 			return tags

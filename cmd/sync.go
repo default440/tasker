@@ -45,14 +45,14 @@ var (
 	featureIDRegexp         = regexp.MustCompile(`\d+`)
 	startedWithNumberRegexp = regexp.MustCompile(`^\d+`)
 
-	syncCmdFlagfeatureWorkItemID  uint32
-	syncCmdFlagskipExistsingTasks bool
-	syncCmdFlagSkipNewTasks       bool
-	syncCmdFlagNoTitleAutoPrefix  bool
-	syncCmdFlagTitleCustomPrefix  string
-	syncCmdFlagTags               []string
-	syncCmdFlagPartNumber         uint32
-	syncCmdFlagAppendTagsToTitle  bool
+	syncCmdFlagFeatureWorkItemID uint32
+	syncCmdFlagSkipExistingTasks bool
+	syncCmdFlagSkipNewTasks      bool
+	syncCmdFlagNoTitleAutoPrefix bool
+	syncCmdFlagTitleCustomPrefix string
+	syncCmdFlagTags              []string
+	syncCmdFlagPartNumber        uint32
+	syncCmdFlagAppendTagsToTitle bool
 
 	syncCmdTemplatesCache = make(map[string]*template.Template)
 )
@@ -60,8 +60,8 @@ var (
 func init() {
 	rootCmd.AddCommand(syncCmd)
 
-	syncCmd.Flags().Uint32VarP(&syncCmdFlagfeatureWorkItemID, "feature", "f", 0, "ID of TFS feature work item (in case wiki page title not contains it)")
-	syncCmd.Flags().BoolVar(&syncCmdFlagskipExistsingTasks, "create-only", false, "Do not update existing tasks")
+	syncCmd.Flags().Uint32VarP(&syncCmdFlagFeatureWorkItemID, "feature", "f", 0, "ID of TFS feature work item (in case wiki page title not contains it)")
+	syncCmd.Flags().BoolVar(&syncCmdFlagSkipExistingTasks, "create-only", false, "Do not update existing tasks")
 	syncCmd.Flags().BoolVar(&syncCmdFlagSkipNewTasks, "update-only", false, "Do not create new tasks")
 	syncCmd.Flags().StringVar(&syncCmdFlagTitleCustomPrefix, "prefix", "", "Custom prefix for each task, ie \"Part 3. \"")
 	syncCmd.Flags().BoolVar(&syncCmdFlagNoTitleAutoPrefix, "no-auto-prefix", false, "Do not prepend each task with index prefix")
@@ -88,12 +88,12 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 		return err
 	}
 
-	if syncCmdFlagfeatureWorkItemID <= 0 {
+	if syncCmdFlagFeatureWorkItemID <= 0 {
 		id, err := strconv.ParseUint(featureIDRegexp.FindString(content.Title), 10, 32)
 		if err != nil {
 			return errors.New("unable to determine TFS feature ID from wiki page title")
 		}
-		syncCmdFlagfeatureWorkItemID = uint32(id)
+		syncCmdFlagFeatureWorkItemID = uint32(id)
 	}
 
 	tasks, err := wiki.ParseTasksTable(content.Body.Storage.Value)
@@ -122,7 +122,7 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 		switch {
 		case syncCmdFlagSkipNewTasks && t.TfsTaskID == 0:
 			return false
-		case syncCmdFlagskipExistsingTasks && t.TfsTaskID != 0:
+		case syncCmdFlagSkipExistingTasks && t.TfsTaskID != 0:
 			return false
 		default:
 			return true
@@ -147,7 +147,7 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 	}
 
 	if ok {
-		err = createTasks(ctx, int(syncCmdFlagfeatureWorkItemID), tasks)
+		err = createTasks(ctx, int(syncCmdFlagFeatureWorkItemID), tasks)
 		if err != nil {
 			return err
 		}
@@ -203,7 +203,7 @@ func updateWikiPage(api *wiki.API, content *goconfluence.Content, tasks []*wiki.
 	if err == nil {
 		spinner.Success("Wiki page updated")
 	} else {
-		spinner.Fail("Wiki pdage not updated: " + err.Error())
+		spinner.Fail("Wiki page not updated: " + err.Error())
 	}
 	_ = spinner.Stop()
 	return err

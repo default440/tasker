@@ -94,7 +94,7 @@ func (a *API) CreateWorkItem(ctx context.Context, workitemType, title, descripti
 
 	var workitem *workitemtracking.WorkItem
 	if workitemType == "Requirement" {
-		workitem, err = a.WiClient.CreateRequirement(ctx, "Developmtn", title, description, areaPath, iterationPath, estimate, 1, relations, tags)
+		workitem, err = a.WiClient.CreateRequirement(ctx, "Development", title, description, areaPath, iterationPath, estimate, 1, relations, tags)
 	} else {
 		workitem, err = a.WiClient.CreateTask(ctx, title, description, areaPath, iterationPath, estimate, relations, tags)
 	}

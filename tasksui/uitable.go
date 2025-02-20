@@ -16,7 +16,7 @@ type uiTable struct {
 }
 
 func (ut *uiTable) draw() {
-	for i := 0; i < len(ut.rows); i++ {
+	for i := range ut.rows {
 		ut.rows[i].draw()
 	}
 }

@@ -67,11 +67,11 @@ var (
 		Long:  "Query work items by WIQL query.",
 		Args:  cobra.RangeArgs(0, 1),
 		Run: func(cmd *cobra.Command, args []string) {
-			titlePattrern := ""
+			titlePattern := ""
 			if len(args) > 0 {
-				titlePattrern = args[0]
+				titlePattern = args[0]
 			}
-			err := queryWorkItemCommand(cmd.Context(), titlePattrern)
+			err := queryWorkItemCommand(cmd.Context(), titlePattern)
 			cobra.CheckErr(err)
 		},
 	}

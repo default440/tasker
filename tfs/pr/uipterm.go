@@ -22,7 +22,7 @@ func (ui *ptermUI) RequestUserSelectionString(prompt string, choices []string) (
 func ptermRequestUserSelection[T any](prompt string, values []T, nameSelector func(value T) string) (T, error) {
 	options := make([]string, 0, len(values))
 
-	for i := 0; i < len(values); i++ {
+	for i := range values {
 		options = append(options, nameSelector(values[i]))
 	}
 
@@ -31,7 +31,7 @@ func ptermRequestUserSelection[T any](prompt string, values []T, nameSelector fu
 		Show(prompt)
 
 	if err == nil {
-		for i := 0; i < len(values); i++ {
+		for i := range values {
 			if option == nameSelector(values[i]) {
 				return values[i], nil
 			}

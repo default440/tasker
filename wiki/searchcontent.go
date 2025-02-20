@@ -9,13 +9,13 @@ import (
 )
 
 // getContentEndpoint creates the correct api endpoint by given id
-func (a *API) getSearchContntEndpoint() (*url.URL, error) {
+func (a *API) getSearchContentEndpoint() (*url.URL, error) {
 	return url.ParseRequestURI(a.endPoint.String() + "/content/search")
 }
 
-// Search querys confluence using CQL
+// Search queries confluence using CQL
 func (a *API) SearchContent(query goconfluence.SearchQuery) (*goconfluence.Search, error) {
-	ep, err := a.getSearchContntEndpoint()
+	ep, err := a.getSearchContentEndpoint()
 	if err != nil {
 		return nil, err
 	}

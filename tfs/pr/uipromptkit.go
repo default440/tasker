@@ -32,7 +32,7 @@ func (ui *promptkitUI) RequestUserSelectionString(prompt string, choices []strin
 
 func promptkitRequestUserSelection[T any](prompt string, values []T, nameSelector func(value T) string) (T, error) {
 	choices := make([]*promptkitUIChoice[T], 0, len(values))
-	for i := 0; i < len(values); i++ {
+	for i := range values {
 		choices = append(choices, &promptkitUIChoice[T]{
 			StringValue: nameSelector(values[i]),
 			Value:       values[i],
