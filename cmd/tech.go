@@ -49,7 +49,8 @@ var (
 		},
 	}
 
-	techDebtPriorityRegexp = regexp.MustCompile(`\d+`)
+	techDebtPriorityRegexp   = regexp.MustCompile(`\d+`)
+	techDebtEstimationRegexp = regexp.MustCompile(`\[\d+\]`)
 
 	syncTechCmdFlagTfsRequirementID    uint
 	syncTechCmdFlagWikiParentPageID    uint
@@ -176,7 +177,9 @@ func syncTechCommand(ctx context.Context) error {
 	}
 
 	for _, page := range pages {
-		page.Title, _ = strings.CutPrefix(page.Title, fmt.Sprintf("%v. ", page.priority))
+		page.Title, _ = strings.CutPrefix(page.Title, fmt.Sprintf("%v.", page.priority))
+		page.Title, _ = strings.CutSuffix(page.Title, fmt.Sprintf("[%v]", page.estimate))
+		page.Title = strings.TrimSpace(page.Title)
 	}
 
 	if syncTechCmdFlagTfsWorkItemPrefix != "" {
@@ -193,6 +196,8 @@ func syncTechCommand(ctx context.Context) error {
 	if !ok {
 		return nil
 	}
+
+	_ = requirement
 
 	err = createTechDebtTasks(ctx, pages, tfsAPI, wikiAPI, requirement)
 	if err != nil {
@@ -277,12 +282,17 @@ func parseTechDebtPages(ctx context.Context, pageIDs []string, api *wiki.API) ([
 				priority = float64(syncTechCmdFlagTfsDefaultPriority)
 			}
 
+			estimation, err := strconv.ParseFloat(strings.Trim(techDebtEstimationRegexp.FindString(content.Title), "[]"), 32)
+			if err != nil {
+				estimation = float64(syncTechCmdFlagTfsEstimate)
+			}
+
 			techDebt, err := wiki.ParseTechDebt(content)
 			if err != nil {
 				return err
 			}
 
-			techDebt.Labels = lo.Map(labels.Labels, func(label goconfluence.Label, i int) string {
+			techDebt.Labels = lo.Map(labels.Labels, func(label goconfluence.Label, _ int) string {
 				return label.Name
 			})
 
@@ -290,7 +300,7 @@ func parseTechDebtPages(ctx context.Context, pageIDs []string, api *wiki.API) ([
 			pages = append(pages, &techDebtPage{
 				TechDebt: &techDebt,
 				content:  content,
-				estimate: float32(syncTechCmdFlagTfsEstimate),
+				estimate: float32(estimation),
 				priority: float32(priority),
 			})
 			m.Unlock()

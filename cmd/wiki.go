@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -9,7 +10,6 @@ import (
 	"strings"
 	"tasker/wiki"
 
-	"github.com/google/uuid"
 	"github.com/pterm/pterm"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
@@ -20,7 +20,7 @@ var (
 	wikiCmd = &cobra.Command{
 		Use:   "wiki",
 		Short: "Manage Wiki pages",
-		Long:  `Move wike pages.`,
+		Long:  `Move wiki pages.`,
 	}
 
 	moveWikiCmd = &cobra.Command{
@@ -50,6 +50,18 @@ If page titles used, space key required.`,
 			}
 
 			err := moveWikiPagesCommand()
+			cobra.CheckErr(err)
+		},
+	}
+
+	deleteWikiCmd = &cobra.Command{
+		Use:   "delete <Page ID|Title, ...>",
+		Short: "Delete wiki pages",
+		Long:  `Delete wiki pages.`,
+		Args:  cobra.ArbitraryArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			deleteWikiCmdFlagDeletingPages = append(deleteWikiCmdFlagDeletingPages, args...)
+			err := deleteWikiPagesCommand(cmd.Context())
 			cobra.CheckErr(err)
 		},
 	}
@@ -133,6 +145,9 @@ If page titles used, space key required.`,
 		},
 	}
 
+	deleteWikiCmdFlagDeletingPages []string
+	deleteWikiCmdFlagDeleteChild   bool
+
 	moveWikiCmdFlagNewParentPage string
 	moveWikiCmdFlagMovingPages   []string
 	moveWikiCmdFlagPagesSpaceKey string
@@ -147,6 +162,8 @@ If page titles used, space key required.`,
 	uploadWikiContentCmdFlagAddTableOfContents bool
 	uploadWikiContentCmdFlagHeaderLevel        uint
 	uploadWikiContentCmdFlagFixRefs            bool
+	uploadWikiContentCmdFlagDeleteChildren     bool
+	uploadWikiContentCmdFlagUploadRefs         bool
 
 	getWikiContentCmdFlagContentType string
 
@@ -169,6 +186,9 @@ func init() {
 	wikiCmd.AddCommand(queryWikiPagesCmd)
 	wikiCmd.AddCommand(workitemsFromWikiPageCmd)
 	wikiCmd.AddCommand(copyWikiCmd)
+	wikiCmd.AddCommand(deleteWikiCmd)
+
+	deleteWikiCmd.Flags().BoolVarP(&deleteWikiCmdFlagDeleteChild, "del-child", "", false, "Delete child pages")
 
 	moveWikiCmd.Flags().StringVarP(&moveWikiCmdFlagNewParentPage, "target", "t", "", "ID or title of target parent Wiki page")
 	moveWikiCmd.Flags().StringSliceVarP(&moveWikiCmdFlagMovingPages, "page", "p", nil, "ID or title of moving page")
@@ -178,9 +198,11 @@ func init() {
 	uploadWikiContentCmd.Flags().UintVarP(&uploadWikiContentCmdFlagTargetID, "target", "t", 0, "ID of target Wiki page")
 	uploadWikiContentCmd.Flags().StringVarP(&uploadWikiContentCmdFlagSourcePath, "file", "f", "", "Path to file with wiki markup")
 	uploadWikiContentCmd.Flags().StringVarP(&uploadWikiContentCmdFlagContentType, "type", "", "wiki", "Content type (wiki, storage, editor, md, etc.)")
-	uploadWikiContentCmd.Flags().BoolVarP(&uploadWikiContentCmdFlagAddTableOfContents, "add-table-of-contents", "", false, "Perepend content with 'Table of Contents' wiki macros")
-	uploadWikiContentCmd.Flags().UintVarP(&uploadWikiContentCmdFlagHeaderLevel, "header-level", "", 2, "Max Header Level of Talbe of Contents wiki macros")
+	uploadWikiContentCmd.Flags().BoolVarP(&uploadWikiContentCmdFlagAddTableOfContents, "add-table-of-contents", "", false, "Prepend content with 'Table of Contents' wiki macros")
+	uploadWikiContentCmd.Flags().UintVarP(&uploadWikiContentCmdFlagHeaderLevel, "header-level", "", 2, "Max Header Level of Table of Contents wiki macros")
 	uploadWikiContentCmd.Flags().BoolVarP(&uploadWikiContentCmdFlagFixRefs, "fix-refs", "", false, "Fix relative references")
+	uploadWikiContentCmd.Flags().BoolVarP(&uploadWikiContentCmdFlagDeleteChildren, "del-child", "", false, "Delete children of target page before upload")
+	uploadWikiContentCmd.Flags().BoolVarP(&uploadWikiContentCmdFlagUploadRefs, "upload-refs", "", false, "Upload referenced files")
 	cobra.CheckErr(uploadWikiContentCmd.MarkFlagRequired("target"))
 	cobra.CheckErr(uploadWikiContentCmd.MarkFlagRequired("file"))
 	cobra.CheckErr(uploadWikiContentCmd.MarkFlagFilename("file"))
@@ -191,7 +213,7 @@ func init() {
 	queryWikiPagesCmd.Flags().StringVarP(&queryWikiPagesCmdFlagParent, "parent", "p", "", "Parent page id or title")
 	queryWikiPagesCmd.Flags().StringArrayVarP(&queryWikiPagesCmdFlagLabels, "label", "l", nil, "Page labels")
 	queryWikiPagesCmd.Flags().IntVarP(&queryWikiPagesCmdFlagLimit, "limit", "", 0, "Results limit")
-	queryWikiPagesCmd.Flags().BoolVarP(&queryWikiPagesCmdFlagLabelsOr, "lables-or", "", false, "ORing lables")
+	queryWikiPagesCmd.Flags().BoolVarP(&queryWikiPagesCmdFlagLabelsOr, "labels-or", "", false, "ORing labels")
 	queryWikiPagesCmd.Flags().BoolVarP(&queryWikiPagesCmdFlagShowID, "id", "", false, "Show pages ID")
 
 	workitemsFromWikiPageCmd.Flags().BoolVarP(&workitemsFromWikiPageCmdFlagFirst, "first", "f", false, "Only first task from page")
@@ -226,6 +248,55 @@ func moveWikiPagesCommand() error {
 	}
 
 	_, _ = progressbar.Stop()
+
+	return err
+}
+
+func deleteWikiPagesCommand(ctx context.Context) error {
+	api, err := wiki.NewClient()
+	if err != nil {
+		return err
+	}
+
+	progressbar, err := pterm.DefaultProgressbar.WithTitle("Processing...").WithTotal(len(deleteWikiCmdFlagDeletingPages)).WithRemoveWhenDone().Start()
+	if err != nil {
+		return err
+	}
+
+	for _, pageID := range deleteWikiCmdFlagDeletingPages {
+		progressbar.UpdateTitle(fmt.Sprintf("Deleting... %v", pageID))
+
+		err = deleteWikiPage(api, pageID, deleteWikiCmdFlagDeleteChild)
+		if err != nil {
+			pterm.Error.Println(fmt.Sprintf("NOT DELETED %v: %s", pageID, err.Error()))
+		} else {
+			pterm.Success.Println(fmt.Sprintf("DELETED %v", pageID))
+		}
+	}
+
+	_, _ = progressbar.Stop()
+
+	return err
+}
+
+func deleteWikiPage(api *wiki.API, pageID string, deleteChildPages bool) error {
+	childPages, err := api.GetChildPages(pageID)
+	if err != nil {
+		return err
+	}
+
+	if len(childPages.Results) > 0 && !deleteChildPages {
+		return fmt.Errorf("page %s has children", pageID)
+	}
+
+	for _, childPage := range childPages.Results {
+		err = deleteWikiPage(api, childPage.ID, deleteChildPages)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = api.DelContent(pageID)
 
 	return err
 }
@@ -281,29 +352,38 @@ func uploadWikiPageContentCommand() error {
 		data = r.ReplaceAllString(data, fmt.Sprintf(`${1}%s-${4}${3}${4}${5}`, page.Title))
 	}
 
-	if uploadWikiContentCmdFlagContentType == "md" || uploadWikiContentCmdFlagContentType == "markdown" {
-		data = `` +
-			`<ac:structured-macro ac:name="markdown" ac:schema-version="1" ac:macro-id="` + uuid.NewString() + `"><ac:parameter ac:name="atlassian-macro-output-type">INLINE</ac:parameter><ac:plain-text-body><![CDATA[` +
-			string(content) +
-			`]]></ac:plain-text-body></ac:structured-macro>`
-		dataType = "storage"
+	if uploadWikiContentCmdFlagDeleteChildren {
+		childPages, err := api.GetChildPages(strconv.Itoa(int(uploadWikiContentCmdFlagTargetID)))
+		if err != nil {
+			return fmt.Errorf("failed to fetch child pages: %w", err)
+		}
+
+		for _, cp := range childPages.Results {
+			err = deleteWikiPage(api, cp.ID, true)
+			if err != nil {
+				return fmt.Errorf("failed to delete child page %v: %w", cp, err)
+			}
+		}
 	}
 
-	if uploadWikiContentCmdFlagAddTableOfContents {
-		data = `<ac:structured-macro xmlns:ac="http://atlassian.com/content" ac:name="expand" ac:schema-version="1" ac:macro-id="` + uuid.NewString() + `">
-			<ac:parameter ac:name="title">Table of Contents</ac:parameter>
-			<ac:rich-text-body>
-				<p>
-					<ac:structured-macro ac:name="toc" ac:schema-version="1" ac:macro-id="` + uuid.NewString() + `">
-						<ac:parameter ac:name="maxLevel">` + strconv.Itoa(int(uploadWikiContentCmdFlagHeaderLevel)) + `</ac:parameter>
-					</ac:structured-macro>
-				</p>
-			</ac:rich-text-body>
-		</ac:structured-macro>
-		` + data
+	opts := []wiki.UploadOption{
+		wiki.AddTableOfContents(uploadWikiContentCmdFlagAddTableOfContents),
+		wiki.HeaderLevel(int(uploadWikiContentCmdFlagHeaderLevel)),
 	}
 
-	return api.UploadContent(uploadWikiContentCmdFlagTargetID, data, dataType)
+	// if uploadWikiContentCmdFlagUploadRefs && wiki.IsMarkdownContentType(uploadWikiContentCmdFlagContentType) {
+	// 	u, err := mdtree.CreateWikiContentUploader(
+	// 		api,
+	// 		uploadWikiContentCmdFlagSourcePath,
+	// 		strconv.Itoa(int(uploadWikiContentCmdFlagTargetID)),
+	// 	)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	return u.Upload()
+	// }
+
+	return wiki.UploadContent(api, strconv.Itoa(int(uploadWikiContentCmdFlagTargetID)), data, dataType, opts...)
 }
 
 func getWikiPageContentCommand(pageID string) error {

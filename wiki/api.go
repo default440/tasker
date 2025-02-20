@@ -184,8 +184,8 @@ func (a *API) GetPageByTitle(title, spaceKey string, opts ...GetPageByTitleOpt) 
 	return p, nil
 }
 
-func (a *API) UploadContent(targetPageID uint, content string, contentType string) error {
-	page, err := a.GetPageByID(strconv.Itoa(int(targetPageID)))
+func (a *API) UploadContent(targetPageID, content, contentType string) error {
+	page, err := a.GetPageByID(targetPageID)
 	if err != nil {
 		return err
 	}

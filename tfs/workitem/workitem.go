@@ -176,7 +176,7 @@ func (api *Client) CreateRequirement(ctx context.Context, requirementType, title
 		},
 		{
 			Path:  ptr.FromStr("/fields/System.AssignedTo"),
-			Value: nil,
+			Value: "",
 		},
 	}
 
