@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -95,6 +96,25 @@ var (
 		},
 	}
 
+	changeWorkItemsParentCmd = &cobra.Command{
+		Use:   "change-parent <Work Item ID, ...>",
+		Short: "Changing parent of work items",
+		Long:  "Changing parent work items by ID.",
+		Args:  cobra.MinimumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			var workItemIDs []int
+
+			for i := range args {
+				workItemID, err := strconv.Atoi(args[i])
+				cobra.CheckErr(err)
+				workItemIDs = append(workItemIDs, workItemID)
+			}
+
+			err := changeWorkItemsParentCommand(cmd.Context(), workItemIDs)
+			cobra.CheckErr(err)
+		},
+	}
+
 	copyWorkItemCmdParentID      int
 	copyWorkItemCmdIterationPath string
 	copyWorkItemCmdAreaPath      string
@@ -104,6 +124,8 @@ var (
 	queryWorkItemCmdFlagStates []string
 	queryWorkItemCmdFlagActive bool
 	queryWorkItemCmdFlagTags   []string
+
+	changeWorkItemsParentCmdParentID int
 )
 
 func init() {
@@ -112,6 +134,7 @@ func init() {
 	rootCmd.AddCommand(copyWorkItemCmd)
 	rootCmd.AddCommand(queryWorkItemCmd)
 	rootCmd.AddCommand(closeWorkItemsCmd)
+	rootCmd.AddCommand(changeWorkItemsParentCmd)
 
 	copyWorkItemCmd.Flags().IntVarP(&copyWorkItemCmdParentID, "parent", "p", 0, "Id of parent of new Work Item (if specified, then source added as AffectedBy)")
 	copyWorkItemCmd.Flags().StringVarP(&copyWorkItemCmdIterationPath, "iteration", "i", "", "Iteration Path of new Work Item")
@@ -122,6 +145,72 @@ func init() {
 	queryWorkItemCmd.Flags().StringSliceVarP(&queryWorkItemCmdFlagStates, "state", "s", nil, "Work items in specified states")
 	queryWorkItemCmd.Flags().BoolVarP(&queryWorkItemCmdFlagActive, "active", "a", false, "Work items in active state")
 	queryWorkItemCmd.Flags().StringSliceVarP(&queryWorkItemCmdFlagTags, "tag", "", nil, "Work items tag")
+
+	changeWorkItemsParentCmd.Flags().IntVarP(&changeWorkItemsParentCmdParentID, "parent", "p", 0, "ID of new parent work item")
+	cobra.CheckErr(changeWorkItemsParentCmd.MarkFlagRequired("parent"))
+}
+
+func changeWorkItemsParentCommand(ctx context.Context, workItemIDs []int) error {
+	spinner, _ := pterm.DefaultSpinner.Start()
+	defer func() {
+		_ = spinner.Stop()
+	}()
+
+	a, err := tfs.NewAPI(ctx)
+	if err != nil {
+		return err
+	}
+
+	newParentWorkItem, err := a.WiClient.Get(ctx, changeWorkItemsParentCmdParentID)
+	if err != nil {
+		return err
+	}
+
+	workItems, err := a.WiClient.GetWorkItems(ctx, workitemtracking.GetWorkItemsArgs{
+		Ids:     &workItemIDs,
+		Project: &a.Project,
+		Expand:  &workitemtracking.WorkItemExpandValues.Relations,
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, workItem := range *workItems {
+
+		relationIndex := slices.IndexFunc(*workItem.Relations, func(rel workitemtracking.WorkItemRelation) bool {
+			return *rel.Rel == "System.LinkTypes.Hierarchy-Reverse"
+		})
+		if relationIndex == -1 {
+			relationIndex = 0
+		}
+
+		fields := []webapi.JsonPatchOperation{
+			{
+				Op:   &webapi.OperationValues.Remove,
+				Path: ptr.FromStr(fmt.Sprintf("/relations/%d", relationIndex)),
+			},
+			{
+				Op:   &webapi.OperationValues.Add,
+				Path: ptr.FromStr("/relations/-"),
+				Value: workitemtracking.WorkItemRelation{
+					Rel: ptr.FromStr("System.LinkTypes.Hierarchy-Reverse"),
+					Url: newParentWorkItem.Url,
+				},
+			},
+		}
+
+		_, err := a.WiClient.UpdateWorkItem(ctx, workitemtracking.UpdateWorkItemArgs{
+			Id:       workItem.Id,
+			Project:  &a.Project,
+			Document: &fields,
+		})
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func closeWorkItemsCommand(ctx context.Context, workItemIDs []int) error {

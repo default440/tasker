@@ -65,7 +65,7 @@ func init() {
 	syncCmd.Flags().BoolVar(&syncCmdFlagSkipNewTasks, "update-only", false, "Do not create new tasks")
 	syncCmd.Flags().StringVar(&syncCmdFlagTitleCustomPrefix, "prefix", "", "Custom prefix for each task, ie \"Part 3. \"")
 	syncCmd.Flags().BoolVar(&syncCmdFlagNoTitleAutoPrefix, "no-auto-prefix", false, "Do not prepend each task with index prefix")
-	syncCmd.Flags().StringSliceVarP(&syncCmdFlagTags, "tag", "t", []string{}, "Tags of the tasks. Can be separated by comma or specified multiple times.")
+	syncCmd.Flags().StringSliceVarP(&syncCmdFlagTags, "tag", "t", []string{"разработка"}, "Tags of the tasks. Can be separated by comma or specified multiple times.")
 	syncCmd.Flags().Uint32VarP(&syncCmdFlagPartNumber, "part", "p", 0, "Table number (tasks part), if tasks splitted into multiple tables (parts)")
 	syncCmd.Flags().BoolVar(&syncCmdFlagAppendTagsToTitle, "append-tags-to-title", false, "Append tas tags to task title")
 }
@@ -108,6 +108,9 @@ func syncCommand(ctx context.Context, wikiPageID int) error {
 
 	for _, table := range tables {
 		addTitlePrefixes(table, len(tables) > 1)
+		for _, t := range table.Tasks {
+			t.Tags = append(t.Tags, syncCmdFlagTags...)
+		}
 	}
 
 	if syncCmdFlagPartNumber > 0 {
@@ -233,9 +236,6 @@ func createTasks(ctx context.Context, featureID int, tasks []*wiki.Task) error {
 			}
 		}
 
-		tags := t.Tags
-		tags = append(tags, syncCmdFlagTags...)
-
 		progressbar.UpdateTitle(fmt.Sprintf("Creating %s", cutString(title, 20, true)))
 
 		if t.TfsTaskID > 0 {
@@ -246,7 +246,7 @@ func createTasks(ctx context.Context, featureID int, tasks []*wiki.Task) error {
 				pterm.Warning.Println(fmt.Sprintf("NOT UPDATED %s: %s", title, err.Error()))
 			}
 		} else {
-			tfsTask, err := a.CreateChildTask(ctx, title, t.Description, t.Estimate, feature, tags)
+			tfsTask, err := a.CreateChildTask(ctx, title, t.Description, t.Estimate, feature, t.Tags)
 			if err == nil {
 				pterm.Success.Println(fmt.Sprintf("CREATED %s", title))
 				t.Update(createTfsTaskMacro(tfsTask))
@@ -315,10 +315,14 @@ func addTitlePrefixes(table *wiki.Table, withPartNumber bool) {
 			t.Title = fmt.Sprintf("%02d. %s", i+1, t.Title)
 		}
 
+		if !syncCmdFlagNoTitleAutoPrefix && withPartNumber {
+			t.Title = fmt.Sprintf("%d.%s", table.Number, t.Title)
+		}
+
 		if len(syncCmdFlagTitleCustomPrefix) > 0 {
 			t.Title = fmt.Sprintf("%s%s", syncCmdFlagTitleCustomPrefix, t.Title)
-		} else if !syncCmdFlagNoTitleAutoPrefix && withPartNumber {
-			t.Title = fmt.Sprintf("%d.%s", table.Number, t.Title)
+		} else {
+			t.Title = fmt.Sprintf("[DEV] %s", t.Title)
 		}
 	}
 }

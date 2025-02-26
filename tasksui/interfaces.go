@@ -10,6 +10,10 @@ type Task interface {
 	GetTfsTaskID() int
 	SetTfsTaskID(taskID int)
 	Clone() Task
+	GetTags() []string
+	SetTags(tags []string)
+	GetTagsString() string
+	SetTagsString(tags string)
 }
 
 type Table interface {

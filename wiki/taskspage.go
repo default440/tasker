@@ -55,6 +55,16 @@ func (t *Task) Clone() tasksui.Task {
 	t2 := *t
 	return &t2
 }
+func (t *Task) GetTags() []string     { return t.Tags }
+func (t *Task) SetTags(tags []string) { t.Tags = tags }
+func (t *Task) GetTagsString() string { return strings.Join(t.Tags, "; ") }
+func (t *Task) SetTagsString(tagsString string) {
+	if len(strings.TrimSpace(tagsString)) > 0 {
+		t.Tags = strings.Split(tagsString, "; ")
+	} else {
+		t.Tags = nil
+	}
+}
 
 type Table struct {
 	Number int

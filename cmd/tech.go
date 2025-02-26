@@ -104,11 +104,15 @@ func (t *techDebtPage) SetEstimate(estimate float32)      { t.estimate = estimat
 func (t *techDebtPage) GetPriority() float32              { return t.priority }
 func (t *techDebtPage) SetPriority(priority float32)      { t.priority = priority }
 func (t *techDebtPage) GetTfsTaskID() int                 { return 0 }
-func (t *techDebtPage) SetTfsTaskID(_ int)                {}
+func (t *techDebtPage) SetTfsTaskID(_ int)                { /* not supported */ }
 func (t *techDebtPage) Clone() tasksui.Task {
 	t2 := *t
 	return &t2
 }
+func (t *techDebtPage) GetTags() []string         { return nil }
+func (t *techDebtPage) SetTags(tags []string)     { /* not supported */ }
+func (t *techDebtPage) GetTagsString() string     { return "" }
+func (t *techDebtPage) SetTagsString(tags string) { /* not supported */ }
 
 type techDebtPageTable struct {
 	pages []*techDebtPage

@@ -40,6 +40,12 @@ func (u *ui) editTask(t Task, onSave func(Task), onCancel func()) {
 			t.SetEstimate(float32(estimate))
 		})
 
+	form.AddInputField("Tags", t.GetTagsString(), width,
+		func(textToCheck string, lastChar rune) bool { return true },
+		func(text string) {
+			t.SetTagsString(text)
+		})
+
 	saveCb := func() {
 		u.closeModal()
 		if onSave != nil {

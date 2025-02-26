@@ -105,7 +105,6 @@ func newUI(tables []Table) *ui {
 				onCancel()
 			case ev.Key() == tcell.KeyCtrlS:
 				onSave()
-
 			}
 		}
 

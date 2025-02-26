@@ -194,12 +194,19 @@ func (api *Client) CreateTask(ctx context.Context, title, description, areaPath,
 			Path:  ptr.FromStr("/fields/Microsoft.VSTS.Scheduling.RemainingWork"),
 			Value: estimate,
 		},
+		{
+			Path:  ptr.FromStr("/fields/System.AssignedTo"),
+			Value: "",
+		},
 	}
 
 	return api.create(ctx, "Task", title, description, areaPath, iterationPath, estimate, relations, fields, tags)
 }
 
 func (api *Client) create(ctx context.Context, workitemType, title, description, areaPath, iterationPath string, estimate float32, relations []*Relation, fields []*Field, tags []string) (*workitemtracking.WorkItem, error) {
+	slices.Sort(tags)
+	tags = slices.Compact(tags)
+
 	documentFields := []webapi.JsonPatchOperation{
 		{
 			Op:    &webapi.OperationValues.Add,
