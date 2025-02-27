@@ -20,30 +20,40 @@ import (
 )
 
 var (
-	getWorkItemCmd = &cobra.Command{
-		Use:   "get <Work Item ID>",
-		Short: "Get work item",
-		Long:  "Get work item by ID.",
-		Args:  cobra.ExactArgs(1),
+	getWorkItemsCmd = &cobra.Command{
+		Use:   "get <Work Item ID, ...>",
+		Short: "Get work items",
+		Long:  "Get work items by ID.",
+		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			workItemID, err := strconv.Atoi(args[0])
-			cobra.CheckErr(err)
+			var workItemIDs []int
 
-			err = getWorkItemCommand(cmd.Context(), workItemID)
+			for i := range args {
+				workItemID, err := strconv.Atoi(args[i])
+				cobra.CheckErr(err)
+				workItemIDs = append(workItemIDs, workItemID)
+			}
+
+			err := getWorkItemsCommand(cmd.Context(), workItemIDs)
 			cobra.CheckErr(err)
 		},
 	}
 
-	deleteWorkItemCmd = &cobra.Command{
-		Use:   "delete <Work Item ID>",
-		Short: "Delete work item",
-		Long:  "Delete work item by ID.",
-		Args:  cobra.ExactArgs(1),
+	deleteWorkItemsCmd = &cobra.Command{
+		Use:   "delete <Work Item ID, ...>",
+		Short: "Delete work items",
+		Long:  "Delete work items by ID.",
+		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			workItemID, err := strconv.Atoi(args[0])
-			cobra.CheckErr(err)
+			var workItemIDs []int
 
-			err = deleteWorkItemCommand(cmd.Context(), workItemID)
+			for i := range args {
+				workItemID, err := strconv.Atoi(args[i])
+				cobra.CheckErr(err)
+				workItemIDs = append(workItemIDs, workItemID)
+			}
+
+			err := deleteWorkItemsCommand(cmd.Context(), workItemIDs)
 			cobra.CheckErr(err)
 		},
 	}
@@ -57,12 +67,12 @@ var (
 			workItemID, err := strconv.Atoi(args[0])
 			cobra.CheckErr(err)
 
-			err = copyWorkItemCommand(cmd.Context(), workItemID)
+			err = copyWorkItemsCommand(cmd.Context(), workItemID)
 			cobra.CheckErr(err)
 		},
 	}
 
-	queryWorkItemCmd = &cobra.Command{
+	queryWorkItemsCmd = &cobra.Command{
 		Use:   "query [title pattern]",
 		Short: "Query work items",
 		Long:  "Query work items by WIQL query.",
@@ -99,7 +109,7 @@ var (
 	changeWorkItemsParentCmd = &cobra.Command{
 		Use:   "change-parent <Work Item ID, ...>",
 		Short: "Changing parent of work items",
-		Long:  "Changing parent work items by ID.",
+		Long:  "Changing parent of work items by ID.",
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			var workItemIDs []int
@@ -119,20 +129,20 @@ var (
 	copyWorkItemCmdIterationPath string
 	copyWorkItemCmdAreaPath      string
 
-	queryWorkItemCmdFlagParent string
-	queryWorkItemCmdFlagType   string
-	queryWorkItemCmdFlagStates []string
-	queryWorkItemCmdFlagActive bool
-	queryWorkItemCmdFlagTags   []string
+	queryWorkItemsCmdFlagParent string
+	queryWorkItemsCmdFlagType   string
+	queryWorkItemsCmdFlagStates []string
+	queryWorkItemsCmdFlagActive bool
+	queryWorkItemsCmdFlagTags   []string
 
 	changeWorkItemsParentCmdParentID int
 )
 
 func init() {
-	rootCmd.AddCommand(getWorkItemCmd)
-	rootCmd.AddCommand(deleteWorkItemCmd)
+	rootCmd.AddCommand(getWorkItemsCmd)
+	rootCmd.AddCommand(deleteWorkItemsCmd)
 	rootCmd.AddCommand(copyWorkItemCmd)
-	rootCmd.AddCommand(queryWorkItemCmd)
+	rootCmd.AddCommand(queryWorkItemsCmd)
 	rootCmd.AddCommand(closeWorkItemsCmd)
 	rootCmd.AddCommand(changeWorkItemsParentCmd)
 
@@ -140,21 +150,25 @@ func init() {
 	copyWorkItemCmd.Flags().StringVarP(&copyWorkItemCmdIterationPath, "iteration", "i", "", "Iteration Path of new Work Item")
 	copyWorkItemCmd.Flags().StringVarP(&copyWorkItemCmdIterationPath, "area", "a", "", "Area Path of new Work Item")
 
-	queryWorkItemCmd.Flags().StringVarP(&queryWorkItemCmdFlagParent, "parent", "p", "", "Work items child of specified work item")
-	queryWorkItemCmd.Flags().StringVarP(&queryWorkItemCmdFlagType, "type", "t", "", "Work items specified type")
-	queryWorkItemCmd.Flags().StringSliceVarP(&queryWorkItemCmdFlagStates, "state", "s", nil, "Work items in specified states")
-	queryWorkItemCmd.Flags().BoolVarP(&queryWorkItemCmdFlagActive, "active", "a", false, "Work items in active state")
-	queryWorkItemCmd.Flags().StringSliceVarP(&queryWorkItemCmdFlagTags, "tag", "", nil, "Work items tag")
+	queryWorkItemsCmd.Flags().StringVarP(&queryWorkItemsCmdFlagParent, "parent", "p", "", "Work items child of specified work item")
+	queryWorkItemsCmd.Flags().StringVarP(&queryWorkItemsCmdFlagType, "type", "t", "", "Work items specified type")
+	queryWorkItemsCmd.Flags().StringSliceVarP(&queryWorkItemsCmdFlagStates, "state", "s", nil, "Work items in specified states")
+	queryWorkItemsCmd.Flags().BoolVarP(&queryWorkItemsCmdFlagActive, "active", "a", false, "Work items in active state")
+	queryWorkItemsCmd.Flags().StringSliceVarP(&queryWorkItemsCmdFlagTags, "tag", "", nil, "Work items tag")
 
 	changeWorkItemsParentCmd.Flags().IntVarP(&changeWorkItemsParentCmdParentID, "parent", "p", 0, "ID of new parent work item")
 	cobra.CheckErr(changeWorkItemsParentCmd.MarkFlagRequired("parent"))
 }
 
 func changeWorkItemsParentCommand(ctx context.Context, workItemIDs []int) error {
-	spinner, _ := pterm.DefaultSpinner.Start()
-	defer func() {
-		_ = spinner.Stop()
-	}()
+	progressbar, err := pterm.DefaultProgressbar.WithTitle("Processing...").WithTotal(len(workItemIDs)).WithRemoveWhenDone().Start()
+	if err == nil {
+		defer func() {
+			_, _ = progressbar.Stop()
+		}()
+	} else {
+		progressbar = nil
+	}
 
 	a, err := tfs.NewAPI(ctx)
 	if err != nil {
@@ -176,6 +190,9 @@ func changeWorkItemsParentCommand(ctx context.Context, workItemIDs []int) error 
 	}
 
 	for _, workItem := range *workItems {
+		if progressbar != nil {
+			progressbar.UpdateTitle(fmt.Sprintf("Processing %s", workitem.GetTitle(&workItem)))
+		}
 
 		relationIndex := slices.IndexFunc(*workItem.Relations, func(rel workitemtracking.WorkItemRelation) bool {
 			return *rel.Rel == "System.LinkTypes.Hierarchy-Reverse"
@@ -208,16 +225,24 @@ func changeWorkItemsParentCommand(ctx context.Context, workItemIDs []int) error 
 		if err != nil {
 			return err
 		}
+
+		if progressbar != nil {
+			progressbar.Increment()
+		}
 	}
 
 	return nil
 }
 
 func closeWorkItemsCommand(ctx context.Context, workItemIDs []int) error {
-	spinner, _ := pterm.DefaultSpinner.Start()
-	defer func() {
-		_ = spinner.Stop()
-	}()
+	progressbar, err := pterm.DefaultProgressbar.WithTitle("Processing...").WithTotal(len(workItemIDs)).WithRemoveWhenDone().Start()
+	if err == nil {
+		defer func() {
+			_, _ = progressbar.Stop()
+		}()
+	} else {
+		progressbar = nil
+	}
 
 	a, err := tfs.NewAPI(ctx)
 	if err != nil {
@@ -225,6 +250,10 @@ func closeWorkItemsCommand(ctx context.Context, workItemIDs []int) error {
 	}
 
 	for _, workItemID := range workItemIDs {
+		if progressbar != nil {
+			progressbar.UpdateTitle(fmt.Sprintf("Processing %d", workItemID))
+		}
+
 		fields := []webapi.JsonPatchOperation{
 			{
 				Op:    &webapi.OperationValues.Replace,
@@ -242,12 +271,16 @@ func closeWorkItemsCommand(ctx context.Context, workItemIDs []int) error {
 		if err != nil {
 			return err
 		}
+
+		if progressbar != nil {
+			progressbar.Increment()
+		}
 	}
 
 	return nil
 }
 
-func copyWorkItemCommand(ctx context.Context, sourceWorkItemID int) error {
+func copyWorkItemsCommand(ctx context.Context, sourceWorkItemID int) error {
 	spinner, _ := pterm.DefaultSpinner.Start()
 	defer func() {
 		_ = spinner.Stop()
@@ -304,18 +337,18 @@ func copyWorkItemCommand(ctx context.Context, sourceWorkItemID int) error {
 	return err
 }
 
-func getWorkItemCommand(ctx context.Context, workItemID int) error {
+func getWorkItemsCommand(ctx context.Context, workItemIDs []int) error {
 	a, err := tfs.NewAPI(ctx)
 	if err != nil {
 		return err
 	}
 
-	workItem, err := a.WiClient.GetExpanded(ctx, workItemID)
+	workItems, err := a.WiClient.GetListExpanded(ctx, workItemIDs)
 	if err != nil {
 		return err
 	}
 
-	prettyprint.JSONObject(workItem)
+	prettyprint.JSONObject(workItems)
 
 	return nil
 }
@@ -328,14 +361,14 @@ func queryWorkItemCommand(ctx context.Context, titlePattern string) error {
 
 	var workItems []int
 
-	if queryWorkItemCmdFlagParent != "" {
+	if queryWorkItemsCmdFlagParent != "" {
 		childsWiql := `
 			SELECT
 				[System.Id]
 			FROM WorkItemLinks
 			WHERE 
 				([System.Links.LinkType] = 'System.LinkTypes.Hierarchy-Reverse')
-				AND ([Target].[System.Id] = ` + queryWorkItemCmdFlagParent + `)
+				AND ([Target].[System.Id] = ` + queryWorkItemsCmdFlagParent + `)
 		`
 
 		childsResult, err := a.WiClient.QueryByWiql(ctx, workitemtracking.QueryByWiqlArgs{
@@ -364,16 +397,16 @@ func queryWorkItemCommand(ctx context.Context, titlePattern string) error {
 		filters = append(filters, "[Title] CONTAINS '"+titlePattern+"'")
 	}
 
-	if queryWorkItemCmdFlagActive {
+	if queryWorkItemsCmdFlagActive {
 		filters = append(filters, "[State] = 'Active'")
 	}
 
-	if queryWorkItemCmdFlagType != "" {
-		filters = append(filters, "[Work Item Type] = '"+queryWorkItemCmdFlagType+"'")
+	if queryWorkItemsCmdFlagType != "" {
+		filters = append(filters, "[Work Item Type] = '"+queryWorkItemsCmdFlagType+"'")
 	}
 
 	var statesFilters []string
-	for _, state := range queryWorkItemCmdFlagStates {
+	for _, state := range queryWorkItemsCmdFlagStates {
 		statesFilters = append(statesFilters, "[State] = '"+state+"'")
 	}
 	if len(statesFilters) > 0 {
@@ -411,11 +444,35 @@ func queryWorkItemCommand(ctx context.Context, titlePattern string) error {
 	return nil
 }
 
-func deleteWorkItemCommand(ctx context.Context, workItemID int) error {
+func deleteWorkItemsCommand(ctx context.Context, workItemIDs []int) error {
 	a, err := tfs.NewAPI(ctx)
 	if err != nil {
 		return err
 	}
 
-	return a.WiClient.Delete(ctx, workItemID)
+	progressbar, err := pterm.DefaultProgressbar.WithTitle("Processing...").WithTotal(len(workItemIDs)).WithRemoveWhenDone().Start()
+	if err == nil {
+		defer func() {
+			_, _ = progressbar.Stop()
+		}()
+	} else {
+		progressbar = nil
+	}
+
+	for _, workItemID := range workItemIDs {
+		if progressbar != nil {
+			progressbar.UpdateTitle(fmt.Sprintf("Processing %d", workItemID))
+		}
+
+		err := a.WiClient.Delete(ctx, workItemID)
+		if err != nil {
+			return err
+		}
+
+		if progressbar != nil {
+			progressbar.Increment()
+		}
+	}
+
+	return nil
 }

@@ -78,6 +78,13 @@ func (api *Client) GetExpanded(ctx context.Context, workItemID int) (*workitemtr
 	})
 }
 
+func (api *Client) GetListExpanded(ctx context.Context, workItemIDs []int) (*[]workitemtracking.WorkItem, error) {
+	return api.GetWorkItems(ctx, workitemtracking.GetWorkItemsArgs{
+		Ids:    &workItemIDs,
+		Expand: &workitemtracking.WorkItemExpandValues.All,
+	})
+}
+
 func (api *Client) Delete(ctx context.Context, workItemID int) error {
 	_, err := api.DeleteWorkItem(ctx, workitemtracking.DeleteWorkItemArgs{
 		Project: &api.project,
