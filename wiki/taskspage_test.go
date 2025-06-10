@@ -135,3 +135,95 @@ func Test_ParseTasks_Page2(t *testing.T) {
 	setNodesToNil(tasks)
 	assert.Equal(t, expected, tasks)
 }
+
+func Test_ParseTasks_Page3(t *testing.T) {
+	file, err := os.ReadFile("../testdata/wiki_page_3.html")
+	assert.NoError(t, err)
+
+	tasks, err := ParseTasksTable(string(file))
+	assert.NoError(t, err)
+	assert.NotEmpty(t, tasks)
+	assert.Len(t, tasks, 6)
+
+	expected := []*Task{
+		{
+			Title:       "Batch синхронизация пользователей",
+			Description: "/// Получить известные параметры здоровья.",
+			Estimate:    3,
+		},
+		{
+			Title:       "Batch синхронизация атрибутов пользователя",
+			Description: "Редактирование атрибутов пользователей",
+			Estimate:    1,
+		},
+		{
+			Title:       "Синхронизация пользователей по нотификациям",
+			Description: "<p>Добавление</p><p>Удаление</p><p>Редактирование</p>",
+			Estimate:    3,
+		},
+		{
+			Title:       "Синхронизация атрибутов ассетов по нотификациям",
+			Description: "Редактирование атрибутов пользователей",
+			Estimate:    1,
+		},
+		{
+			Title:       "Сведение",
+			Description: "<br/>",
+			Estimate:    6,
+		},
+		{
+			Title:       "Демо",
+			Description: "<br/>",
+			Estimate:    4,
+		},
+	}
+
+	setNodesToNil(tasks)
+	assert.Equal(t, expected, tasks)
+}
+
+func Test_ParseTasks_Page4(t *testing.T) {
+	file, err := os.ReadFile("../testdata/wiki_page_4.html")
+	assert.NoError(t, err)
+
+	tasks, err := ParseTasksTable(string(file))
+	assert.NoError(t, err)
+	assert.NotEmpty(t, tasks)
+	assert.Len(t, tasks, 6)
+
+	expected := []*Task{
+		{
+			Title:       "Batch синхронизация пользователей",
+			Description: "/// <summary>\n/// Получить известные параметры здоровья.\n/// </summary>",
+			Estimate:    3,
+		},
+		{
+			Title:       "Batch синхронизация атрибутов пользователя",
+			Description: "Редактирование атрибутов пользователей",
+			Estimate:    1,
+		},
+		{
+			Title:       "Синхронизация пользователей по нотификациям",
+			Description: "<p>Добавление</p><p>Удаление</p><p>Редактирование</p>",
+			Estimate:    3,
+		},
+		{
+			Title:       "Синхронизация атрибутов ассетов по нотификациям",
+			Description: "Редактирование атрибутов пользователей",
+			Estimate:    1,
+		},
+		{
+			Title:       "Сведение",
+			Description: "<br/>",
+			Estimate:    6,
+		},
+		{
+			Title:       "Демо",
+			Description: "<br/>",
+			Estimate:    4,
+		},
+	}
+
+	setNodesToNil(tasks)
+	assert.Equal(t, expected, tasks)
+}

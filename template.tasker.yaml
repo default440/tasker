@@ -1,12 +1,13 @@
 tfsBaseAddress: https://msk-tfs-t.infotecs-nt:8080/tfs/SrvNccCollection
+
 tfsDiscipline: Development
-tfsProject: NSMS
-tfsTeam: SMP
-tfsUserFilter:
+tfsProject: PRG_Prime
+
+tfsTeam: NVC
+
 tfsAccessToken:
-tfsBugfixUserStoryNamePattern: bugfix
-tfsCommonUserStoryNamePattern: общие задачи
-tfsBugTitleTemplate: BUG {{.ID}} {{.Title}}
+
 wikiBaseAddress: https://wiki.infotecs.int
+
 wikiAccessToken:
-syncCmdTfsTaskMacroPath: .tasker.tfs-task-macro.xml
+syncCmdTfsTaskMacroPath: C:\Users\ummon\source\repos\tasker\.tasker.tfs-task-macro.xml
