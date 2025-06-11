@@ -11,7 +11,7 @@
             "mode": "debug",
             "console": "integratedTerminal",
             "program": "F:/tasker/main.go",
-            "args": ["sync", "-f", "139097", "516468458", "--create-only", "--no-auto-prefix"],
+            "args": ["sync", "-f", "139097", "520743331", "--create-only", "--no-auto-prefix"],
             //"args": ["sync", "241379452"],
             // "args": ["pr", "silso"],
             //"args": [ "pr", "create"],

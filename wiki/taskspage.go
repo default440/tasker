@@ -117,22 +117,20 @@ func ParseTasksTable(body string) ([]*Task, error) {
 	_ = doc.Find("table").
 		Each(func(i int, s *goquery.Selection) {
 			if len(s.Find("table").Nodes) > 0 {
-				html, _ := s.Find("table").Html()
-
 				text := ""
 
 				s.Find("table").Find("code").Each(func(i int, ss *goquery.Selection) {
-					text = text + "\n" + ss.Text()
+					code := ss.Text()
+					code = strings.Replace(code, "<", "&lt;", -1)
+					code = strings.Replace(code, ">", "&gt;", -1)
+					text = text + "<p>" + code + "</p>"
 				})
 
-				print(html)
-
-				// text = s.Find("table").Text()
+				// text = strings.Replace(text, "<p</p>", "<p>", -1)
 				s.Find("table").ReplaceWithHtml("<td colspan=\"1\">" + removeExtraSpaces(text) + "</td>")
 			}
 		}).
 		FilterFunction(func(i int, s *goquery.Selection) bool {
-			// TODO: отфильровать таблицы кода
 			return tasksRegexp.MatchString(s.Prev().Text())
 		}).
 		Each(func(i int, s *goquery.Selection) {
