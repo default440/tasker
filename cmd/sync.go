@@ -246,7 +246,7 @@ func createTasks(ctx context.Context, featureID int, tasks []*wiki.Task) error {
 				pterm.Warning.Println(fmt.Sprintf("NOT UPDATED %s: %s", title, err.Error()))
 			}
 		} else {
-			tfsTask, err := a.CreateChildTask(ctx, title, t.Description, t.Estimate, feature, t.Tags)
+			tfsTask, err := a.CreateChildTask(ctx, title, t.Description, t.Estimate, feature, t.Tags, t.AssignedTo)
 			if err == nil {
 				pterm.Success.Println(fmt.Sprintf("CREATED %s", title))
 				t.Update(createTfsTaskMacro(tfsTask))
@@ -322,7 +322,7 @@ func addTitlePrefixes(table *wiki.Table, withPartNumber bool) {
 		if len(syncCmdFlagTitleCustomPrefix) > 0 {
 			t.Title = fmt.Sprintf("%s%s", syncCmdFlagTitleCustomPrefix, t.Title)
 		} else {
-			t.Title = fmt.Sprintf("[DEV] %s", t.Title)
+			t.Title = fmt.Sprintf("%s", t.Title)
 		}
 	}
 }

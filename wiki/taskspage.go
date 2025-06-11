@@ -30,6 +30,7 @@ const (
 	estColumn
 	tfsColumn
 	tagsColumn
+	assignedToColumn
 )
 
 type Task struct {
@@ -38,6 +39,7 @@ type Task struct {
 	Estimate    float32
 	TfsTaskID   int
 	Tags        []string
+	AssignedTo  string
 	tfsColumn   *goquery.Selection
 	updated     bool
 	tr          *goquery.Selection
@@ -49,6 +51,8 @@ func (t *Task) GetDescription() string            { return t.Description }
 func (t *Task) SetDescription(description string) { t.Description = description }
 func (t *Task) GetEstimate() float32              { return t.Estimate }
 func (t *Task) SetEstimate(estimate float32)      { t.Estimate = estimate }
+func (t *Task) GetAssignedTo() string             { return t.AssignedTo }
+func (t *Task) SetAssignedTo(assignedTo string)   { t.AssignedTo = assignedTo }
 func (t *Task) GetTfsTaskID() int                 { return t.TfsTaskID }
 func (t *Task) SetTfsTaskID(tfsTaskID int)        { t.TfsTaskID = tfsTaskID }
 func (t *Task) Clone() tasksui.Task {
@@ -131,6 +135,8 @@ func ParseTasksTable(body string) ([]*Task, error) {
 					columnsMapping[colNum] = descColumn
 				case "оценка":
 					columnsMapping[colNum] = estColumn
+				case "исполнитель":
+					columnsMapping[colNum] = assignedToColumn
 				case "tfs":
 					columnsMapping[colNum] = tfsColumn
 				case "тег":
@@ -168,6 +174,9 @@ func ParseTasksTable(body string) ([]*Task, error) {
 						tags := regexp.MustCompile(`[\PL]`).Split(tagsStr, -1)
 						tags = slices.DeleteFunc(tags, func(s string) bool { return s == "" })
 						task.Tags = tags
+					case assignedToColumn:
+						assignedTo := td.Text()
+						task.AssignedTo = strings.TrimSpace(assignedTo)
 					}
 				}
 			})
