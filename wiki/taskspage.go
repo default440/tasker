@@ -117,7 +117,17 @@ func ParseTasksTable(body string) ([]*Task, error) {
 	_ = doc.Find("table").
 		Each(func(i int, s *goquery.Selection) {
 			if len(s.Find("table").Nodes) > 0 {
-				text := s.Find("table").Text()
+				html, _ := s.Find("table").Html()
+
+				text := ""
+
+				s.Find("table").Find("code").Each(func(i int, ss *goquery.Selection) {
+					text = text + "\n" + ss.Text()
+				})
+
+				print(html)
+
+				// text = s.Find("table").Text()
 				s.Find("table").ReplaceWithHtml("<td colspan=\"1\">" + removeExtraSpaces(text) + "</td>")
 			}
 		}).
