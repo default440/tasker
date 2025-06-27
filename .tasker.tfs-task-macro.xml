@@ -4,9 +4,10 @@
             <ac:parameter ac:name="itemID">{{.Task.Id}}</ac:parameter>
             <ac:parameter ac:name="host">1</ac:parameter>
             <ac:parameter ac:name="assigned">true</ac:parameter>
-            <ac:parameter ac:name="title">false</ac:parameter>
+            <ac:parameter ac:name="title">true</ac:parameter>
             <ac:parameter ac:name="type">false</ac:parameter>
             <ac:parameter ac:name="status">true</ac:parameter>
+            <ac:parameter ac:name="originalEstimate">true</ac:parameter>
         </ac:structured-macro>
     </p>
 </div>
