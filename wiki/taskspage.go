@@ -116,10 +116,26 @@ func ParseTasksTable(body string) ([]*Task, error) {
 
 	_ = doc.Find("table").
 		Each(func(i int, s *goquery.Selection) {
-			s.SetAttr("index", fmt.Sprintf("%d", i))
+			if len(s.Find("table").Nodes) == 0 {
+				text := "&lt;code&gt;"
+
+				s.Find("code").Each(func(i int, ss *goquery.Selection) {
+					code := ss.Text()
+					code = strings.Replace(code, "<", "&lt;", -1)
+					code = strings.Replace(code, ">", "&gt;", -1)
+					text = text + "<p>" + code + "</p>"
+				})
+
+				text = text + "&lt;/code&gt;"
+
+				s.ReplaceWithHtml("<div>" + removeExtraSpaces(text) + "</div>")
+			}
 		}).
 		FilterFunction(func(i int, s *goquery.Selection) bool {
 			return tasksRegexp.MatchString(s.Prev().Text())
+		}).
+		Each(func(i int, s *goquery.Selection) {
+			s.SetAttr("index", fmt.Sprintf("%d", i))
 		}).
 		Find("tr").
 		Each(func(i int, tr *goquery.Selection) {
@@ -202,6 +218,24 @@ func UpdatePageContent(body string, tasks []*Task) (string, bool, error) {
 		return "", false, nil
 	}
 
+	var htmlTables []string
+	htmlTableIndex := 0
+	doc, _ := goquery.NewDocumentFromReader(strings.NewReader(body))
+
+	doc.Find("table").
+		Each(func(i int, s *goquery.Selection) {
+			if len(s.Find("table").Nodes) == 0 {
+				htmlTable, _ := s.Html()
+				htmlTables = append(htmlTables, "<table class=\"wrapped\" data-mce-resize=\"false\" style=\"text-align: left;\">"+htmlTable+"</table>")
+				s.ReplaceWithHtml("<meta>link " + strconv.Itoa(htmlTableIndex) + "</meta>")
+				htmlTableIndex = htmlTableIndex + 1
+			}
+		})
+
+	html, _ := doc.Find("body").Html()
+
+	body = html
+
 	tables := make(map[int]*goquery.Selection)
 	for _, t := range tasks {
 		tableIndex := t.TableIndex()
@@ -235,6 +269,13 @@ func UpdatePageContent(body string, tasks []*Task) (string, bool, error) {
 		modifiedBody += body[i[1]:]
 		body = modifiedBody
 		tablesIndexes = tablesRegexp.FindAllStringIndex(body, -1)
+	}
+
+	for i := 0; i < len(htmlTables); i++ {
+		begin := strings.Index(body, "&lt;code&gt;")
+		end := strings.Index(body, "&lt;/code&gt;")
+
+		body = body[:begin] + htmlTables[i] + body[end+13:]
 	}
 
 	return body, true, nil

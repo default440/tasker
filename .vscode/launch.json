@@ -9,32 +9,20 @@
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "main.go",
-            //"args": ["create", "bugfix", "93112", "-e", "8"],
+            "console": "integratedTerminal",
+            "program": "F:/tasker/main.go",
+            "args": ["sync", "-f", "139097", "520743331", "--create-only", "--no-auto-prefix"],
             //"args": ["sync", "241379452"],
             // "args": ["pr", "silso"],
             //"args": [ "pr", "create"],
             //"args": [ "tech", "sync", "--force", "-d", "318447909,199118523,195527170", "-r", "100703" ],
             //"args": [ "wiki", "move", "-s", "smp" ,"-t", "Ретро 2022", "Ретро 2022.03" ],
             //"args": ["tech", "sync", "-r", "82874", "-p", "263166820"]
-            "args": [ "create", "Статусы, встречи, обсуждения", "-e", "40" ],
-            "env": {
-                "http_proxy": "http://11.0.0.92:3126",
-                "https_proxy": "http://11.0.0.92:3126"
-            },
-            //"console": "integratedTerminal"
-        },
-        {
-            "preLaunchTask": "start dlv-dap",
-            "name": "Connect to server",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "port": 2345,
-            "host": "127.0.0.1",
-            "program": "main.go",
-            "env": {},
-            "args": [ "pr", "create", "-r", "silso"],
+            // "args": [ "create", "Статусы, встречи, обсуждения", "-e", "40" ],
+            // "env": {
+            //     "http_proxy": "http://11.0.0.92:3126",
+            //     "https_proxy": "http://11.0.0.92:3126"
+            // }
         }
     ]
 }
