@@ -119,22 +119,22 @@ func ParseTasksTable(body string) ([]*Task, error) {
 	var tasks []*Task
 
 	_ = doc.Find("table").
-		Each(func(i int, s *goquery.Selection) {
-			if len(s.Find("table").Nodes) == 0 {
-				text := "&lt;code&gt;"
+		// Each(func(i int, s *goquery.Selection) {
+		// 	if len(s.Find("table").Nodes) == 0 {
+		// 		text := "&lt;code&gt;"
 
-				s.Find("code").Each(func(i int, ss *goquery.Selection) {
-					code := ss.Text()
-					code = strings.Replace(code, "<", "&lt;", -1)
-					code = strings.Replace(code, ">", "&gt;", -1)
-					text = text + "<p>" + code + "</p>"
-				})
+		// 		s.Find("code").Each(func(i int, ss *goquery.Selection) {
+		// 			code := ss.Text()
+		// 			code = strings.Replace(code, "<", "&lt;", -1)
+		// 			code = strings.Replace(code, ">", "&gt;", -1)
+		// 			text = text + "<p>" + code + "</p>"
+		// 		})
 
-				text = text + "&lt;/code&gt;"
+		// 		text = text + "&lt;/code&gt;"
 
-				s.ReplaceWithHtml("<div>" + removeExtraSpaces(text) + "</div>")
-			}
-		}).
+		// 		s.ReplaceWithHtml("<div>" + removeExtraSpaces(text) + "</div>")
+		// 	}
+		// }).
 		FilterFunction(func(i int, s *goquery.Selection) bool {
 			return tasksRegexp.MatchString(s.Prev().Text())
 		}).
