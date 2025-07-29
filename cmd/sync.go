@@ -65,7 +65,7 @@ func init() {
 	syncCmd.Flags().BoolVar(&syncCmdFlagSkipNewTasks, "update-only", false, "Do not create new tasks")
 	syncCmd.Flags().StringVar(&syncCmdFlagTitleCustomPrefix, "prefix", "", "Custom prefix for each task, ie \"Part 3. \"")
 	syncCmd.Flags().BoolVar(&syncCmdFlagNoTitleAutoPrefix, "no-auto-prefix", false, "Do not prepend each task with index prefix")
-	syncCmd.Flags().StringSliceVarP(&syncCmdFlagTags, "tag", "t", []string{"разработка"}, "Tags of the tasks. Can be separated by comma or specified multiple times.")
+	syncCmd.Flags().StringSliceVarP(&syncCmdFlagTags, "tag", "t", []string{"tasker"}, "Tags of the tasks. Can be separated by comma or specified multiple times.")
 	syncCmd.Flags().Uint32VarP(&syncCmdFlagPartNumber, "part", "p", 0, "Table number (tasks part), if tasks splitted into multiple tables (parts)")
 	syncCmd.Flags().BoolVar(&syncCmdFlagAppendTagsToTitle, "append-tags-to-title", false, "Append tas tags to task title")
 }
