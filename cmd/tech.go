@@ -225,7 +225,7 @@ func createTechDebtTasks(ctx context.Context, pages []*techDebtPage, tfsAPI *tfs
 		var tfsTask *workitemtracking.WorkItem
 		switch syncTechCmdFlagTfsWorkItemType {
 		case "Task":
-			tfsTask, err = tfsAPI.CreateChildTask(ctx, page.Title, page.Description, page.estimate, requirement, tags, "")
+			tfsTask, err = tfsAPI.CreateChildTask(ctx, page.Title, page.Description, page.estimate, requirement, tags, "", "", "")
 		case "Requirement":
 			tfsTask, err = tfsAPI.CreateChildRequirement(ctx, "Technical", page.Title, page.Description, page.estimate, page.priority, requirement, tags)
 		default:

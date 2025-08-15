@@ -190,7 +190,7 @@ func (api *Client) CreateRequirement(ctx context.Context, requirementType, title
 	return api.create(ctx, "Requirement", title, description, areaPath, iterationPath, estimate, relations, fields, tags)
 }
 
-func (api *Client) CreateTask(ctx context.Context, title, description, areaPath, iterationPath string, estimate float32, relations []*Relation, tags []string, assignedTo string) (*workitemtracking.WorkItem, error) {
+func (api *Client) CreateTask(ctx context.Context, title, description, areaPath, iterationPath string, estimate float32, relations []*Relation, tags []string, assignedTo string, startDate string, finishDate string) (*workitemtracking.WorkItem, error) {
 	discipline := viper.GetString("tfsDiscipline")
 	fields := []*Field{
 		{
@@ -204,6 +204,18 @@ func (api *Client) CreateTask(ctx context.Context, title, description, areaPath,
 		{
 			Path:  ptr.FromStr("/fields/System.AssignedTo"),
 			Value: assignedTo,
+		},
+		{
+			Path:  ptr.FromStr("/fields/Microsoft.VSTS.Common.Triage"),
+			Value: "Triaged",
+		},
+		{
+			Path:  ptr.FromStr("/fields/Microsoft.VSTS.Scheduling.FinishDate"),
+			Value: finishDate,
+		},
+		{
+			Path:  ptr.FromStr("/fields/Microsoft.VSTS.Scheduling.StartDate"),
+			Value: startDate,
 		},
 	}
 
