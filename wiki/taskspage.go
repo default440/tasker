@@ -31,6 +31,8 @@ const (
 	tfsColumn
 	tagsColumn
 	assignedToColumn
+	startDateColumn
+	finishDateColumn
 )
 
 type Task struct {
@@ -40,6 +42,8 @@ type Task struct {
 	TfsTaskID   int
 	Tags        []string
 	AssignedTo  string
+	StartDate   string
+	FinishDate  string
 	tfsColumn   *goquery.Selection
 	updated     bool
 	tr          *goquery.Selection
@@ -53,6 +57,10 @@ func (t *Task) GetEstimate() float32              { return t.Estimate }
 func (t *Task) SetEstimate(estimate float32)      { t.Estimate = estimate }
 func (t *Task) GetAssignedTo() string             { return t.AssignedTo }
 func (t *Task) SetAssignedTo(assignedTo string)   { t.AssignedTo = assignedTo }
+func (t *Task) GetStartDate() string              { return t.StartDate }
+func (t *Task) SetStartDate(startDate string)     { t.StartDate = startDate }
+func (t *Task) GetFinishDate() string             { return t.FinishDate }
+func (t *Task) SetFinishDate(finishDate string)   { t.FinishDate = finishDate }
 func (t *Task) GetTfsTaskID() int                 { return t.TfsTaskID }
 func (t *Task) SetTfsTaskID(tfsTaskID int)        { t.TfsTaskID = tfsTaskID }
 func (t *Task) Clone() tasksui.Task {
@@ -153,6 +161,10 @@ func ParseTasksTable(body string) ([]*Task, error) {
 					columnsMapping[colNum] = estColumn
 				case "исполнитель":
 					columnsMapping[colNum] = assignedToColumn
+				case "дата начала":
+					columnsMapping[colNum] = startDateColumn
+				case "дата окончания":
+					columnsMapping[colNum] = finishDateColumn
 				case "tfs":
 					columnsMapping[colNum] = tfsColumn
 				case "тег":
@@ -193,6 +205,12 @@ func ParseTasksTable(body string) ([]*Task, error) {
 					case assignedToColumn:
 						assignedTo := td.Text()
 						task.AssignedTo = strings.TrimSpace(assignedTo)
+					case startDateColumn:
+						startDate := td.Text()
+						task.StartDate = strings.TrimSpace(startDate)
+					case finishDateColumn:
+						finishDate := td.Text()
+						task.FinishDate = strings.TrimSpace(finishDate)
 					}
 				}
 			})
