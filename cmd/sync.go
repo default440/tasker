@@ -246,7 +246,7 @@ func createTasks(ctx context.Context, featureID int, tasks []*wiki.Task) error {
 				pterm.Warning.Println(fmt.Sprintf("NOT UPDATED %s: %s", title, err.Error()))
 			}
 		} else {
-			tfsTask, err := a.CreateChildTask(ctx, title, t.Description, t.Estimate, feature, t.Tags, t.AssignedTo, t.StartDate, t.FinishDate)
+			tfsTask, err := a.CreateChildTask(ctx, title, t.Description, t.Estimate, feature, t.Tags, t.AssignedTo, t.StartDate, t.FinishDate, t.Priority)
 			if err == nil {
 				pterm.Success.Println(fmt.Sprintf("CREATED %s", title))
 				t.Update(createTfsTaskMacro(tfsTask))

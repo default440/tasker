@@ -33,6 +33,7 @@ const (
 	assignedToColumn
 	startDateColumn
 	finishDateColumn
+	priorityColumn
 )
 
 type Task struct {
@@ -44,6 +45,7 @@ type Task struct {
 	AssignedTo  string
 	StartDate   string
 	FinishDate  string
+	Priority    string
 	tfsColumn   *goquery.Selection
 	updated     bool
 	tr          *goquery.Selection
@@ -61,6 +63,8 @@ func (t *Task) GetStartDate() string              { return t.StartDate }
 func (t *Task) SetStartDate(startDate string)     { t.StartDate = startDate }
 func (t *Task) GetFinishDate() string             { return t.FinishDate }
 func (t *Task) SetFinishDate(finishDate string)   { t.FinishDate = finishDate }
+func (t *Task) GetPriority() string               { return t.Priority }
+func (t *Task) SetPriority(priority string)       { t.Priority = priority }
 func (t *Task) GetTfsTaskID() int                 { return t.TfsTaskID }
 func (t *Task) SetTfsTaskID(tfsTaskID int)        { t.TfsTaskID = tfsTaskID }
 func (t *Task) Clone() tasksui.Task {
@@ -165,6 +169,8 @@ func ParseTasksTable(body string) ([]*Task, error) {
 					columnsMapping[colNum] = startDateColumn
 				case "дата окончания":
 					columnsMapping[colNum] = finishDateColumn
+				case "приоритет":
+					columnsMapping[colNum] = priorityColumn
 				case "tfs":
 					columnsMapping[colNum] = tfsColumn
 				case "тег":
@@ -211,6 +217,9 @@ func ParseTasksTable(body string) ([]*Task, error) {
 					case finishDateColumn:
 						finishDate := td.Text()
 						task.FinishDate = strings.TrimSpace(finishDate)
+					case priorityColumn:
+						priority := td.Text()
+						task.Priority = strings.TrimSpace(priority)
 					}
 				}
 			})

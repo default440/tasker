@@ -96,7 +96,7 @@ func (a *API) CreateWorkItem(ctx context.Context, workitemType, title, descripti
 	if workitemType == "Requirement" {
 		workitem, err = a.WiClient.CreateRequirement(ctx, "Development", title, description, areaPath, iterationPath, estimate, 1, relations, tags)
 	} else {
-		workitem, err = a.WiClient.CreateTask(ctx, title, description, areaPath, iterationPath, estimate, relations, tags, "", "", "")
+		workitem, err = a.WiClient.CreateTask(ctx, title, description, areaPath, iterationPath, estimate, relations, tags, "", "", "", "")
 	}
 	if err != nil {
 		return nil, err
@@ -147,7 +147,7 @@ func (a *API) findCurrentRequirementByPattern(ctx context.Context, namePattern s
 	return nil, errors.New("active requirement with name contains '" + namePattern + "' not found in current and previous sprints")
 }
 
-func (a *API) CreateChildTask(ctx context.Context, title, description string, estimate float32, parent *workitemtracking.WorkItem, tags []string, assignedTo string, startDate string, finishDate string) (*workitemtracking.WorkItem, error) {
+func (a *API) CreateChildTask(ctx context.Context, title, description string, estimate float32, parent *workitemtracking.WorkItem, tags []string, assignedTo string, startDate string, finishDate string, priority string) (*workitemtracking.WorkItem, error) {
 	iterationPath := workitem.GetIterationPath(parent)
 	areaPath := workitem.GetAreaPath(parent)
 	relations := []*workitem.Relation{
@@ -157,7 +157,7 @@ func (a *API) CreateChildTask(ctx context.Context, title, description string, es
 		},
 	}
 
-	return a.WiClient.CreateTask(ctx, title, description, areaPath, iterationPath, estimate, relations, tags, assignedTo, startDate, finishDate)
+	return a.WiClient.CreateTask(ctx, title, description, areaPath, iterationPath, estimate, relations, tags, assignedTo, startDate, finishDate, priority)
 }
 
 func (a *API) CreateChildRequirement(ctx context.Context, requirementType, title, description string, estimate, priority float32, parent *workitemtracking.WorkItem, tags []string) (*workitemtracking.WorkItem, error) {
